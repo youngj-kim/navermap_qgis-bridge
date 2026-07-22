@@ -1,0 +1,6 @@
+{
+  "naver_client_id": "YOUR_NAVER_MAP_CLIENT_ID",
+  "naver_client_secret": "YOUR_NAVER_MAP_CLIENT_SECRET",
+  "naver_api_hub_client_id": "YOUR_NAVER_API_HUB_CLIENT_ID",
+  "naver_api_hub_client_secret": "YOUR_NAVER_API_HUB_CLIENT_SECRET"
+}

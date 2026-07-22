@@ -1,0 +1,16 @@
+[general]
+name=Naver Map QGIS Bridge
+qgisMinimumVersion=3.34
+qgisMaximumVersion=4.99
+description=Dock-based Naver Map and Street View viewer with bidirectional QGIS synchronization and geocoding search.
+version=0.2.0
+author=yjkim
+email=contact@yjkim.dev
+about=Shows Naver Maps JavaScript API content inside a QGIS dock widget and synchronizes QGIS, Naver Map, and Street View in both directions. Includes geocoding search, route search, and Street View position/direction display. Naver tile URLs are not extracted or used as XYZ/TMS layers.
+category=Web
+icon=icon.png
+tracker=https://github.com/youngj-kim/navermap_qgis-bridge/issues
+repository=https://github.com/youngj-kim/navermap_qgis-bridge
+homepage=https://github.com/youngj-kim/navermap_qgis-bridge
+experimental=True
+deprecated=False

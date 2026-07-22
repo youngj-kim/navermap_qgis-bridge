@@ -1,0 +1,2975 @@
+﻿<!doctype html>
+<html lang="ko" class="centered-viewer">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Naver Map Viewer</title>
+  <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+  <style>
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f7f7f4;
+      color: #1f2428;
+    }
+
+    #viewer {
+      display: grid;
+      --split-primary-size: 50%;
+      grid-template-rows:
+        auto
+        minmax(180px, var(--split-primary-size))
+        10px
+        minmax(180px, 1fr)
+        auto;
+      grid-template-columns: minmax(0, 1fr);
+      height: 100%;
+      position: relative;
+    }
+
+    #viewer.layout-map-top {
+      grid-template-rows:
+        auto
+        minmax(180px, var(--split-primary-size))
+        10px
+        minmax(180px, 1fr)
+        auto;
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    #viewer.layout-roadview-top {
+      grid-template-rows:
+        auto
+        minmax(180px, var(--split-primary-size))
+        10px
+        minmax(180px, 1fr)
+        auto;
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    #viewer.layout-map-left,
+    #viewer.layout-roadview-left {
+      grid-template-rows: auto minmax(360px, 1fr) auto;
+      grid-template-columns:
+        minmax(240px, var(--split-primary-size))
+        10px
+        minmax(240px, 1fr);
+    }
+
+    #search-panel,
+    #status-bar {
+      grid-column: 1 / -1;
+    }
+
+    #viewer.layout-map-top #map,
+    #viewer.layout-roadview-top #roadview {
+      grid-row: 2;
+    }
+
+    #viewer.layout-map-top #roadview,
+    #viewer.layout-roadview-top #map {
+      grid-row: 4;
+    }
+
+    #view-splitter {
+      grid-row: 3;
+      grid-column: 1;
+    }
+
+    #viewer.layout-map-left #map,
+    #viewer.layout-roadview-left #roadview {
+      grid-row: 2;
+      grid-column: 1;
+    }
+
+    #viewer.layout-map-left #roadview,
+    #viewer.layout-roadview-left #map {
+      grid-row: 2;
+      grid-column: 3;
+    }
+
+    #viewer.layout-map-left #view-splitter,
+    #viewer.layout-roadview-left #view-splitter {
+      grid-row: 2;
+      grid-column: 2;
+    }
+
+    #view-splitter {
+      position: relative;
+      z-index: 15;
+      display: grid;
+      place-items: center;
+      background: rgba(255, 255, 255, 0.76);
+      box-shadow: inset 0 0 0 1px rgba(31, 36, 40, 0.08);
+      touch-action: none;
+    }
+
+    #viewer.layout-map-top #view-splitter,
+    #viewer.layout-roadview-top #view-splitter {
+      cursor: row-resize;
+    }
+
+    #viewer.layout-map-left #view-splitter,
+    #viewer.layout-roadview-left #view-splitter {
+      cursor: col-resize;
+    }
+
+    #split-toggle {
+      width: 34px;
+      height: 34px;
+      border: 1px solid rgba(70, 83, 93, 0.35);
+      border-radius: 999px;
+      background: #ffffff;
+      color: #263238;
+      font: inherit;
+      font-size: 18px;
+      line-height: 1;
+      box-shadow: 0 2px 8px rgba(31, 36, 40, 0.16);
+      cursor: pointer;
+    }
+
+    #split-toggle:hover {
+      background: #f3f6f8;
+    }
+
+    html.centered-viewer,
+    html.centered-viewer body {
+      min-height: 100%;
+      background: #e6e8ea;
+    }
+
+    html.centered-viewer #viewer {
+      width: min(100vw, 1280px);
+      height: 100vh;
+      margin: 0 auto;
+      overflow: hidden;
+      background: #f7f7f4;
+      box-shadow: 0 0 0 1px rgba(31, 36, 40, 0.08),
+        0 18px 42px rgba(31, 36, 40, 0.18);
+    }
+
+    @media (min-width: 1440px) {
+      html.centered-viewer #viewer {
+        width: min(74vw, 1320px);
+      }
+    }
+
+    #search-panel {
+      position: relative;
+      z-index: 20;
+      padding: 7px 8px;
+      border-bottom: 1px solid #d7d7d0;
+      background: #ffffff;
+    }
+
+    #search-form {
+      display: grid;
+      grid-template-areas: "query submit layout fullscreen clear";
+      grid-template-columns: minmax(0, 1fr) auto auto 34px 34px;
+      gap: 6px;
+    }
+
+    #search-query {
+      grid-area: query;
+      min-width: 0;
+      height: 34px;
+      padding: 0 9px;
+      border: 1px solid #aeb4b8;
+      border-radius: 6px;
+      background: #ffffff;
+      color: #1f2428;
+      font: inherit;
+      font-size: 13px;
+    }
+
+    #search-query:focus {
+      border-color: #4b77be;
+      outline: 2px solid rgba(75, 119, 190, 0.2);
+      outline-offset: 0;
+    }
+
+    #viewer-layout,
+    #fullscreen-toggle,
+    #search-submit,
+    #search-clear {
+      height: 34px;
+      border: 1px solid #90979c;
+      border-radius: 6px;
+      background: #f3f4f4;
+      color: #1f2428;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    #viewer-layout {
+      grid-area: layout;
+      min-width: 120px;
+      max-width: 100%;
+      padding: 0 8px;
+      background: #ffffff;
+      font-size: 12px;
+    }
+
+    #search-submit {
+      grid-area: submit;
+      min-width: 54px;
+      padding: 0 12px;
+      background: #ffffff;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    #search-clear {
+      grid-area: clear;
+      width: 34px;
+      padding: 0;
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    #fullscreen-toggle {
+      grid-area: fullscreen;
+      width: 34px;
+      padding: 0;
+      font-size: 17px;
+      line-height: 1;
+    }
+
+    #viewer-layout:hover,
+    #fullscreen-toggle:hover,
+    #search-submit:hover,
+    #search-clear:hover {
+      background: #e8eaeb;
+    }
+
+    #search-submit:disabled,
+    #search-clear:disabled,
+    #search-query:disabled {
+      cursor: default;
+      opacity: 0.55;
+    }
+
+    #search-results {
+      position: absolute;
+      top: calc(100% - 1px);
+      right: 8px;
+      left: 8px;
+      max-height: min(42vh, 320px);
+      overflow-y: auto;
+      border: 1px solid #aeb4b8;
+      border-radius: 0 0 6px 6px;
+      background: #ffffff;
+      box-shadow: 0 5px 14px rgba(0, 0, 0, 0.16);
+    }
+
+    #search-results[hidden] {
+      display: none;
+    }
+
+    #route-controls {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .route-label {
+      align-self: center;
+      min-width: 34px;
+      color: #4c555a;
+      font-size: 11px;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .route-input {
+      min-width: 0;
+      height: 32px;
+      padding: 0 8px;
+      border: 1px solid #aeb4b8;
+      border-radius: 6px;
+      background: #ffffff;
+      color: #1f2428;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    .route-input:focus {
+      border-color: #4b77be;
+      outline: 2px solid rgba(75, 119, 190, 0.2);
+      outline-offset: 0;
+    }
+
+    #route-options,
+    .route-waypoint {
+      display: grid;
+      grid-column: 1 / -1;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 6px;
+    }
+
+    #route-options {
+      grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+    }
+
+    #route-avoid-options {
+      display: flex;
+      grid-column: 1 / -1;
+      flex-wrap: wrap;
+      gap: 4px 12px;
+      padding: 4px 6px 5px 40px;
+      border-bottom: 1px solid #e3e5e6;
+    }
+
+    #route-avoid-options[hidden] {
+      display: none;
+    }
+
+    #route-vehicle-options {
+      display: grid;
+      grid-column: 1 / -1;
+      grid-template-columns: auto minmax(92px, 1fr) auto minmax(76px, 1fr) auto;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 6px 5px 40px;
+      border-bottom: 1px solid #e3e5e6;
+    }
+
+    #route-vehicle-options[hidden] {
+      display: none;
+    }
+
+    .route-vehicle-label {
+      color: #4c555a;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .route-avoid-option {
+      display: inline-flex;
+      min-height: 24px;
+      align-items: center;
+      gap: 5px;
+      color: #3f474c;
+      font-size: 11px;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .route-avoid-option input {
+      width: 15px;
+      height: 15px;
+      margin: 0;
+      accent-color: #2b5f9e;
+    }
+
+    #route-priority,
+    #route-car-type,
+    #route-car-fuel {
+      min-width: 0;
+      height: 32px;
+      padding: 0 8px;
+      border: 1px solid #aeb4b8;
+      border-radius: 6px;
+      background: #ffffff;
+      color: #1f2428;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    #route-priority:focus,
+    #route-car-type:focus,
+    #route-car-fuel:focus {
+      border-color: #4b77be;
+      outline: 2px solid rgba(75, 119, 190, 0.2);
+      outline-offset: 0;
+    }
+
+    #route-waypoints {
+      display: grid;
+      grid-column: 1 / -1;
+      gap: 6px;
+    }
+
+    .route-waypoint {
+      grid-template-columns: auto minmax(0, 1fr) auto auto 32px;
+    }
+
+    .route-waypoint-order {
+      display: grid;
+      grid-template-columns: 28px 28px;
+      gap: 2px;
+    }
+
+    .route-waypoint-order button {
+      width: 28px;
+      padding: 0 !important;
+      font-size: 16px !important;
+    }
+
+    .route-waypoint-remove {
+      width: 32px;
+      padding: 0 !important;
+      font-size: 18px !important;
+    }
+
+    #route-controls button,
+    #route-actions button {
+      min-width: 0;
+      height: 32px;
+      overflow: hidden;
+      padding: 0 8px;
+      border: 1px solid #aeb4b8;
+      border-radius: 6px;
+      background: #ffffff;
+      color: #1f2428;
+      font: inherit;
+      font-size: 12px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    #route-controls button:hover,
+    #route-actions button:hover {
+      background: #edf2f7;
+    }
+
+    #route-controls button:disabled,
+    #route-actions button:disabled,
+    .route-input:disabled,
+    #route-priority:disabled,
+    #route-car-type:disabled,
+    #route-car-fuel:disabled {
+      cursor: default;
+      opacity: 0.5;
+    }
+
+    #route-actions {
+      display: grid;
+      grid-column: 1 / -1;
+      grid-template-columns: minmax(0, 1fr) 88px 34px 34px;
+      gap: 6px;
+    }
+
+    #route-create {
+      border-color: #2b5f9e !important;
+      background: #2b5f9e !important;
+      color: #ffffff !important;
+    }
+
+    #route-history-open,
+    #route-swap,
+    #route-reset {
+      padding: 0 !important;
+    }
+
+    #route-swap,
+    #route-reset {
+      width: 34px;
+      font-size: 18px !important;
+    }
+
+    #route-guidance-panel {
+      margin: 7px -8px -7px;
+      border-top: 1px solid #d7d7d0;
+      background: #ffffff;
+    }
+
+    #route-guidance-panel[hidden] {
+      display: none;
+    }
+
+    #route-guidance-summary {
+      display: flex;
+      min-height: 38px;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 8px 5px 12px;
+      border-bottom: 1px solid #e3e5e6;
+    }
+
+    #route-panel-tabs {
+      display: inline-flex;
+      flex: 0 0 auto;
+      overflow: hidden;
+      border: 1px solid #c6ccd1;
+      border-radius: 6px;
+      background: #f8f9fa;
+    }
+
+    .route-panel-tab {
+      min-width: 48px;
+      height: 28px;
+      padding: 0 8px;
+      border: 0;
+      border-right: 1px solid #c6ccd1;
+      background: transparent;
+      color: #3f474d;
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .route-panel-tab:last-child {
+      border-right: 0;
+    }
+
+    .route-panel-tab.is-active {
+      background: #2b5f9e;
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    #route-guidance-summary-text {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      font-size: 12px;
+      font-weight: 600;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    #route-guidance-toggle {
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      border: 1px solid #aeb4b8;
+      border-radius: 6px;
+      background: #ffffff;
+      color: #1f2428;
+      font: inherit;
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    #route-guidance-list,
+    #route-history-list {
+      max-height: min(28vh, 260px);
+      overflow-y: auto;
+    }
+
+    #route-guidance-panel[data-collapsed="true"] #route-guidance-list,
+    #route-guidance-panel[data-collapsed="true"] #route-history-list,
+    #route-guidance-list[hidden],
+    #route-history-list[hidden] {
+      display: none;
+    }
+
+    .guidance-item,
+    .history-item {
+      display: grid;
+      width: 100%;
+      min-height: 54px;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 10px;
+      border: 0;
+      border-bottom: 1px solid #eceeed;
+      background: #ffffff;
+      color: #1f2428;
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .guidance-item {
+      grid-template-columns: 30px 28px minmax(0, 1fr);
+    }
+
+    .history-item {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .history-actions {
+      display: flex;
+      gap: 5px;
+      margin-top: 6px;
+    }
+
+    .history-actions button {
+      min-height: 26px;
+      padding: 3px 8px;
+      border: 1px solid #b8c1c8;
+      border-radius: 6px;
+      background: #ffffff;
+      color: #1f2428;
+      font: inherit;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .history-actions button:hover,
+    .history-actions button:focus {
+      border-color: #2b5f9e;
+      color: #174d86;
+      outline: none;
+    }
+
+    .guidance-item:hover,
+    .guidance-item:focus,
+    .guidance-item.is-active,
+    .history-item:hover,
+    .history-item:focus,
+    .history-item.is-active {
+      background: #edf4fc;
+      outline: none;
+    }
+
+    .guidance-sequence {
+      color: #727a7f;
+      font-size: 11px;
+      text-align: center;
+    }
+
+    .guidance-icon {
+      display: inline-flex;
+      width: 28px;
+      height: 28px;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #1976d2;
+      border-radius: 50%;
+      color: #185aa8;
+      font-size: 17px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .guidance-icon.start,
+    .guidance-icon.destination,
+    .guidance-icon.waypoint {
+      border: 0;
+      color: #ffffff;
+      font-size: 11px;
+    }
+
+    .guidance-icon.start {
+      background: #2e7d32;
+    }
+
+    .guidance-icon.destination {
+      background: #d32f2f;
+    }
+
+    .guidance-icon.waypoint {
+      background: #f9a825;
+    }
+
+    .guidance-copy {
+      min-width: 0;
+    }
+
+    .guidance-title,
+    .guidance-meta,
+    .history-title,
+    .history-meta {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .guidance-title,
+    .history-title {
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .guidance-meta,
+    .history-meta {
+      margin-top: 3px;
+      color: #687176;
+      font-size: 11px;
+    }
+
+    .history-empty {
+      padding: 12px;
+      color: #687176;
+      font-size: 12px;
+    }
+
+    .search-result {
+      display: block;
+      width: 100%;
+      padding: 9px 10px;
+      border: 0;
+      border-bottom: 1px solid #e3e5e6;
+      background: #ffffff;
+      color: #1f2428;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .search-result:last-child {
+      border-bottom: 0;
+    }
+
+    .search-result:hover,
+    .search-result:focus {
+      background: #f2f6fb;
+      outline: none;
+    }
+
+    .search-result-title,
+    .search-result-address {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .search-result-title {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .search-result-address {
+      margin-top: 3px;
+      color: #626b70;
+      font-size: 11px;
+    }
+
+    .search-empty {
+      padding: 14px 10px;
+      color: #626b70;
+      font-size: 12px;
+      text-align: center;
+    }
+
+    #map,
+    #roadview {
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 220px;
+      overflow: hidden;
+    }
+
+    #map > div,
+    #roadview > div {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    #status-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 32px;
+      padding: 6px 8px 6px 10px;
+      border-top: 1px solid #d7d7d0;
+      background: #ffffff;
+    }
+
+    #status {
+      flex: 1;
+      min-width: 0;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    #open-history {
+      flex: 0 0 auto;
+      min-height: 30px;
+      padding: 5px 10px;
+      border: 1px solid #c7a600;
+      border-radius: 6px;
+      background: #fee500;
+      color: #191919;
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    #open-history:hover {
+      background: #f4dc00;
+    }
+
+    #open-history:disabled {
+      cursor: default;
+      opacity: 0.5;
+    }
+
+    @media (max-width: 980px) {
+      #viewer.layout-map-left,
+      #viewer.layout-roadview-left {
+        grid-template-rows:
+          auto
+          minmax(180px, var(--split-primary-size))
+          10px
+          minmax(180px, 1fr)
+          auto;
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      #viewer.layout-map-left #map,
+      #viewer.layout-roadview-left #roadview {
+        grid-row: 2;
+        grid-column: 1;
+      }
+
+      #viewer.layout-map-left #roadview,
+      #viewer.layout-roadview-left #map {
+        grid-row: 4;
+        grid-column: 1;
+      }
+
+      #viewer.layout-map-left #view-splitter,
+      #viewer.layout-roadview-left #view-splitter {
+        grid-row: 3;
+        grid-column: 1;
+        cursor: row-resize;
+      }
+
+      #search-form {
+        grid-template-areas:
+          "query submit fullscreen clear"
+          "layout layout layout layout";
+        grid-template-columns: minmax(0, 1fr) 58px 34px 34px;
+      }
+
+      #viewer-layout {
+        width: 100%;
+      }
+
+      #route-options {
+        grid-template-columns: auto minmax(0, 1fr) auto auto;
+      }
+
+      #route-add-waypoint {
+        grid-column: 2 / -1;
+      }
+
+      #route-vehicle-options {
+        grid-template-columns: auto minmax(0, 1fr);
+      }
+    }
+
+    @media (max-width: 420px) {
+      #status-bar {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      #route-controls,
+      .route-waypoint {
+        grid-template-columns: auto minmax(0, 1fr);
+      }
+
+      #route-origin-current,
+      #route-destination-current,
+      #route-actions {
+        grid-column: 2;
+      }
+
+      #open-history {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main id="viewer" class="layout-map-top">
+    <header id="search-panel">
+      <form id="search-form" role="search">
+        <input id="search-query" type="search" aria-label="장소, 주소 또는 좌표 검색" placeholder="장소, 주소 또는 경도,위도 검색" autocomplete="off" disabled>
+        <button id="search-submit" type="submit" disabled>검색</button>
+        <select id="viewer-layout" aria-label="지도와 로드뷰 배치">
+          <option value="map-top">지도 위 / 로드뷰 아래</option>
+          <option value="roadview-top">로드뷰 위 / 지도 아래</option>
+          <option value="map-left">지도 좌 / 로드뷰 우</option>
+          <option value="roadview-left">로드뷰 좌 / 지도 우</option>
+        </select>
+        <button id="fullscreen-toggle" type="button" title="전체화면 전환" aria-label="전체화면 전환">⛶</button>
+        <button id="search-clear" type="button" title="검색 지우기" aria-label="검색 지우기" disabled>×</button>
+      </form>
+      <div id="route-controls" aria-label="경로 탐색">
+        <div id="route-options">
+          <label class="route-label" for="route-priority">경로</label>
+          <select id="route-priority" aria-label="경로 유형" disabled>
+            <option value="RECOMMEND">실시간 최적</option>
+            <option value="TIME">실시간 빠른길</option>
+            <option value="DISTANCE">실시간 편한길</option>
+          </select>
+          <button id="route-avoid-toggle" type="button" title="경로 회피 옵션" aria-expanded="false" disabled>회피 0</button>
+          <button id="route-vehicle-toggle" type="button" title="차량 설정" aria-expanded="false" disabled>차량</button>
+          <button id="route-add-waypoint" type="button" title="경유지 추가" disabled>+ 경유지</button>
+        </div>
+        <div id="route-avoid-options" aria-label="경로 회피 옵션" hidden>
+          <label class="route-avoid-option"><input type="checkbox" value="toll">무료 우선</label>
+          <label class="route-avoid-option"><input type="checkbox" value="motorway">자동차전용도로 회피</label>
+        </div>
+        <div id="route-vehicle-options" aria-label="차량 설정" hidden>
+          <label class="route-vehicle-label" for="route-car-type">차종</label>
+          <select id="route-car-type">
+            <option value="1">소형</option>
+            <option value="2">중형</option>
+            <option value="3">대형</option>
+            <option value="4">대형 화물</option>
+            <option value="5">특수 화물</option>
+            <option value="6">경차</option>
+            <option value="7">이륜차</option>
+          </select>
+          <label class="route-vehicle-label" for="route-car-fuel">유종</label>
+          <select id="route-car-fuel">
+            <option value="gasoline">휘발유</option>
+            <option value="highgradegasoline">고급 휘발유</option>
+            <option value="diesel">경유</option>
+            <option value="lpg">LPG</option>
+          </select>
+          <label class="route-avoid-option"><input id="route-car-hipass" type="checkbox">하이패스</label>
+        </div>
+        <label class="route-label" for="route-origin-input">출발</label>
+        <input id="route-origin-input" class="route-input" type="text" placeholder="장소, 주소 또는 경도,위도" autocomplete="off" disabled>
+        <button id="route-origin-current" class="route-current" type="button" title="현재 지도 중심을 출발지로 사용" disabled>현재 위치</button>
+        <div id="route-waypoints" aria-label="경유지 목록"></div>
+        <label class="route-label" for="route-destination-input">도착</label>
+        <input id="route-destination-input" class="route-input" type="text" placeholder="장소, 주소 또는 경도,위도" autocomplete="off" disabled>
+        <button id="route-destination-current" class="route-current" type="button" title="현재 지도 중심을 도착지로 사용" disabled>현재 위치</button>
+        <div id="route-actions">
+          <button id="route-create" type="button" disabled>경로 생성</button>
+          <button id="route-history-open" type="button" title="경로 이력 열기" disabled>이력</button>
+          <button id="route-swap" type="button" title="출발지와 도착지 바꾸기" aria-label="출발지와 도착지 바꾸기" disabled>⇅</button>
+          <button id="route-reset" type="button" title="경로 입력 초기화" aria-label="경로 입력 초기화" disabled>×</button>
+        </div>
+      </div>
+      <section id="route-guidance-panel" aria-label="경로 안내" data-collapsed="false" hidden>
+        <div id="route-guidance-summary">
+          <div id="route-panel-tabs" role="tablist" aria-label="경로 정보">
+            <button id="route-guidance-tab" class="route-panel-tab is-active" type="button" role="tab" aria-selected="true">안내</button>
+            <button id="route-history-tab" class="route-panel-tab" type="button" role="tab" aria-selected="false">이력</button>
+          </div>
+          <strong id="route-guidance-summary-text"></strong>
+          <button id="route-guidance-toggle" type="button" title="경로 안내 접기" aria-label="경로 안내 접기">−</button>
+        </div>
+        <div id="route-guidance-list" role="listbox" aria-label="순서별 경로 안내"></div>
+        <div id="route-history-list" role="listbox" aria-label="경로 이력" hidden></div>
+      </section>
+      <div id="search-results" role="listbox" aria-label="검색 결과" hidden></div>
+    </header>
+    <section id="map" aria-label="Naver map"></section>
+    <div id="view-splitter" role="separator" aria-label="지도와 로드뷰 크기 조절" aria-orientation="horizontal">
+      <button id="split-toggle" type="button" title="지도와 로드뷰 위치 전환" aria-label="지도와 로드뷰 위치 전환">⇅</button>
+    </div>
+    <section id="roadview" aria-label="Naver roadview"></section>
+    <footer id="status-bar">
+      <output id="status">Initializing Naver Map viewer...</output>
+      <button id="open-history" type="button" disabled>네이버 지도에서 열기</button>
+    </footer>
+  </main>
+
+  <script>
+    const naverAppKey = __NAVER_APP_KEY_JSON__;
+    const defaultCenter = { lat: 37.566826, lon: 126.9786567 };
+    const searchForm = document.getElementById("search-form");
+    const searchQuery = document.getElementById("search-query");
+    const searchSubmit = document.getElementById("search-submit");
+    const searchClear = document.getElementById("search-clear");
+    const searchResults = document.getElementById("search-results");
+    const viewer = document.getElementById("viewer");
+    const viewerLayoutSelect = document.getElementById("viewer-layout");
+    const fullscreenToggle = document.getElementById("fullscreen-toggle");
+    const viewSplitter = document.getElementById("view-splitter");
+    const splitToggle = document.getElementById("split-toggle");
+    const routeOriginInput = document.getElementById("route-origin-input");
+    const routeDestinationInput = document.getElementById("route-destination-input");
+    const routeOriginCurrentButton = document.getElementById("route-origin-current");
+    const routeDestinationCurrentButton = document.getElementById("route-destination-current");
+    const routePrioritySelect = document.getElementById("route-priority");
+    const routeAvoidToggle = document.getElementById("route-avoid-toggle");
+    const routeAvoidOptions = document.getElementById("route-avoid-options");
+    const routeAvoidCheckboxes = Array.from(
+      routeAvoidOptions.querySelectorAll('input[type="checkbox"]')
+    );
+    const routeVehicleToggle = document.getElementById("route-vehicle-toggle");
+    const routeVehicleOptions = document.getElementById("route-vehicle-options");
+    const routeCarType = document.getElementById("route-car-type");
+    const routeCarFuel = document.getElementById("route-car-fuel");
+    const routeCarHipass = document.getElementById("route-car-hipass");
+    const routeAddWaypointButton = document.getElementById("route-add-waypoint");
+    const routeWaypointsContainer = document.getElementById("route-waypoints");
+    const routeCreateButton = document.getElementById("route-create");
+    const routeHistoryOpenButton = document.getElementById("route-history-open");
+    const routeSwapButton = document.getElementById("route-swap");
+    const routeResetButton = document.getElementById("route-reset");
+    const routeGuidancePanel = document.getElementById("route-guidance-panel");
+    const routeGuidanceTab = document.getElementById("route-guidance-tab");
+    const routeHistoryTab = document.getElementById("route-history-tab");
+    const routeGuidanceSummaryText = document.getElementById("route-guidance-summary-text");
+    const routeGuidanceToggle = document.getElementById("route-guidance-toggle");
+    const routeGuidanceList = document.getElementById("route-guidance-list");
+    const routeHistoryList = document.getElementById("route-history-list");
+    const maxRouteWaypoints = 5;
+
+    let map = null;
+    let marker = null;
+    let roadview = null;
+    let geocoderService = null;
+    let pendingCenter = null;
+    let moveRequestId = 0;
+    let searchRequestId = 0;
+    let routeOrigin = null;
+    let routeDestination = null;
+    const routeWaypoints = [];
+    let nextWaypointId = 1;
+    let routeBusy = false;
+    let routeSearchTimer = null;
+    let nextLocalSearchRequestId = 1;
+    const localSearchRequests = new Map();
+    let lastLocalSearchError = "";
+    let routeGuidance = [];
+    let routeHistory = [];
+    let routePolyline = null;
+    let activeGuidanceSequence = null;
+    let activeRouteHistoryId = "";
+    let activeRoutePanelTab = "guidance";
+    let qgisBridge = null;
+    let mapSyncTimer = null;
+    let roadviewSyncTimer = null;
+    let roadviewStateTimer = null;
+    let stableRelayoutTimers = [];
+    let lastRoadviewSize = "";
+    let programmaticRoadviewPanoId = null;
+    let bridgeSyncSuppressedUntil = 0;
+    const viewerLayoutStorageKey = "naver-qgis-viewer-layout";
+    const viewerSplitStorageKey = "naver-qgis-viewer-split";
+
+    function savedViewerLayout() {
+      try {
+        return window.localStorage.getItem(viewerLayoutStorageKey) || "map-top";
+      } catch (_error) {
+        return "map-top";
+      }
+    }
+
+    function relayoutNaverViews() {
+      const mapElement = document.getElementById("map");
+      const roadviewElement = document.getElementById("roadview");
+      stretchViewerChildren(mapElement);
+      stretchViewerChildren(roadviewElement);
+
+      if (map && mapElement.clientWidth > 0 && mapElement.clientHeight > 0) {
+        suppressBridgeSync(300);
+        const mapCenter = map.getCenter();
+        if (typeof map.setSize === "function") {
+          map.setSize(new naver.maps.Size(mapElement.clientWidth, mapElement.clientHeight));
+        }
+        if (typeof map.refresh === "function") {
+          map.refresh(true);
+        }
+        if (mapCenter) {
+          map.setCenter(mapCenter);
+        }
+      }
+      if (roadview && typeof roadview.setSize === "function") {
+        const roadviewSize = `${roadviewElement.clientWidth}x${roadviewElement.clientHeight}`;
+        if (
+          roadviewElement.clientWidth > 0 &&
+          roadviewElement.clientHeight > 0 &&
+          roadviewSize !== lastRoadviewSize
+        ) {
+          lastRoadviewSize = roadviewSize;
+          roadview.setSize(
+            new naver.maps.Size(
+              roadviewElement.clientWidth,
+              roadviewElement.clientHeight
+            )
+          );
+        }
+      }
+    }
+
+    function scheduleStableRelayout() {
+      stableRelayoutTimers.forEach((timer) => window.clearTimeout(timer));
+      stableRelayoutTimers = [0, 80, 220, 480].map((delay) => {
+        return window.setTimeout(relayoutNaverViews, delay);
+      });
+    }
+
+    function isHorizontalSplitLayout(layout = viewerLayoutSelect.value) {
+      if (window.matchMedia("(max-width: 980px)").matches) {
+        return true;
+      }
+      return layout === "map-top" || layout === "roadview-top";
+    }
+
+    function savedViewerSplit() {
+      try {
+        const value = Number(window.localStorage.getItem(viewerSplitStorageKey));
+        return Number.isFinite(value) ? Math.min(70, Math.max(30, value)) : 50;
+      } catch (_error) {
+        return 50;
+      }
+    }
+
+    function applyViewerSplit(percent) {
+      const nextPercent = Math.min(70, Math.max(30, Number(percent) || 50));
+      viewer.style.setProperty("--split-primary-size", `${nextPercent}%`);
+      try {
+        window.localStorage.setItem(viewerSplitStorageKey, String(nextPercent));
+      } catch (_error) {
+        // Ignore private browsing or locked storage.
+      }
+      scheduleStableRelayout();
+    }
+
+    function updateSplitterState(layout = viewerLayoutSelect.value) {
+      const horizontal = isHorizontalSplitLayout(layout);
+      viewSplitter.setAttribute(
+        "aria-orientation",
+        horizontal ? "horizontal" : "vertical"
+      );
+      splitToggle.textContent = horizontal ? "⇅" : "⇄";
+    }
+
+    function swappedViewerLayout(layout = viewerLayoutSelect.value) {
+      const swaps = {
+        "map-top": "roadview-top",
+        "roadview-top": "map-top",
+        "map-left": "roadview-left",
+        "roadview-left": "map-left"
+      };
+      return swaps[layout] || "map-top";
+    }
+
+    async function toggleBrowserFullScreen() {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else if (viewer.requestFullscreen) {
+        await viewer.requestFullscreen();
+      }
+      scheduleStableRelayout();
+    }
+
+    function applyViewerLayout(layout) {
+      const allowedLayouts = new Set([
+        "map-top",
+        "roadview-top",
+        "map-left",
+        "roadview-left"
+      ]);
+      const nextLayout = allowedLayouts.has(layout) ? layout : "map-top";
+      viewer.classList.remove(
+        "layout-map-top",
+        "layout-roadview-top",
+        "layout-map-left",
+        "layout-roadview-left"
+      );
+      viewer.classList.add(`layout-${nextLayout}`);
+      viewerLayoutSelect.value = nextLayout;
+      updateSplitterState(nextLayout);
+      try {
+        window.localStorage.setItem(viewerLayoutStorageKey, nextLayout);
+      } catch (_error) {
+        // Ignore private browsing or locked storage.
+      }
+      scheduleStableRelayout();
+    }
+
+    function setStatus(message) {
+      document.getElementById("status").textContent = message;
+    }
+
+    function suppressBridgeSync(duration = 700) {
+      bridgeSyncSuppressedUntil = Date.now() + duration;
+    }
+
+    function isBridgeSyncSuppressed() {
+      return Date.now() < bridgeSyncSuppressedUntil;
+    }
+
+    function elementSize(element) {
+      return new naver.maps.Size(
+        Math.max(1, element.clientWidth),
+        Math.max(1, element.clientHeight)
+      );
+    }
+
+    function stretchViewerChildren(element) {
+      Array.from(element.children || []).forEach((child) => {
+        child.style.width = "100%";
+        child.style.height = "100%";
+      });
+    }
+
+    function currentRoadviewCoordinate() {
+      if (!roadview || typeof roadview.getLocation !== "function") {
+        return null;
+      }
+      const location = roadview.getLocation();
+      return location && location.coord ? location.coord : null;
+    }
+
+    function formatGuidanceDistance(distance) {
+      if (!Number.isFinite(distance) || distance <= 0) {
+        return "";
+      }
+      if (distance < 1000) {
+        return `${Math.round(distance)} m`;
+      }
+      return `${(distance / 1000).toFixed(1)} km`;
+    }
+
+    function formatGuidanceDuration(duration) {
+      if (!Number.isFinite(duration) || duration <= 0) {
+        return "";
+      }
+      if (duration < 60) {
+        return `${Math.round(duration)}초`;
+      }
+      return `${Math.max(1, Math.round(duration / 60))}분`;
+    }
+
+    function selectedRouteAvoidOptions() {
+      return routeAvoidCheckboxes
+        .filter((checkbox) => checkbox.checked)
+        .map((checkbox) => checkbox.value);
+    }
+
+    function updateRouteAvoidSummary() {
+      const selected = routeAvoidCheckboxes.filter((checkbox) => checkbox.checked);
+      routeAvoidToggle.textContent = `회피 ${selected.length}`;
+      const labels = selected.map((checkbox) => checkbox.parentElement.textContent.trim());
+      routeAvoidToggle.title = labels.length
+        ? `경로 회피: ${labels.join(", ")}`
+        : "경로 회피 옵션";
+    }
+
+    function selectedRouteVehicleOptions() {
+      return {
+        car_type: Number(routeCarType.value),
+        car_fuel: routeCarFuel.value,
+        car_hipass: routeCarHipass.checked
+      };
+    }
+
+    function updateRouteVehicleSummary() {
+      const typeLabel = routeCarType.options[routeCarType.selectedIndex].text;
+      const fuelLabel = routeCarFuel.options[routeCarFuel.selectedIndex].text;
+      const hipassLabel = routeCarHipass.checked ? ", 하이패스" : "";
+      routeVehicleToggle.title = `차량: ${typeLabel}, ${fuelLabel}${hipassLabel}`;
+    }
+
+    function guidanceIconText(category) {
+      const icons = {
+        start: "출",
+        destination: "도",
+        waypoint: "경",
+        straight: "↑",
+        left: "↰",
+        right: "↱",
+        uturn: "↶",
+        roundabout: "⟳",
+        transition: "↗",
+        other: "•"
+      };
+      return icons[category] || icons.other;
+    }
+
+    function routePriorityLabel(priority) {
+      const labels = {
+        RECOMMEND: "추천",
+        TIME: "최단 시간",
+        DISTANCE: "최단 거리"
+      };
+      return labels[priority] || priority || "";
+    }
+
+    function formatHistoryTime(value) {
+      if (!value) {
+        return "";
+      }
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) {
+        return value;
+      }
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      const hour = String(date.getHours()).padStart(2, "0");
+      const minute = String(date.getMinutes()).padStart(2, "0");
+      return `${month}-${day} ${hour}:${minute}`;
+    }
+
+    function updateRoutePanelVisibility() {
+      routeGuidancePanel.hidden =
+        !routeGuidance.length &&
+        !routeHistory.length &&
+        activeRoutePanelTab !== "history";
+    }
+
+    function activateRoutePanelTab(tabName) {
+      activeRoutePanelTab = tabName === "history" ? "history" : "guidance";
+      const showingHistory = activeRoutePanelTab === "history";
+      routeGuidanceTab.classList.toggle("is-active", !showingHistory);
+      routeHistoryTab.classList.toggle("is-active", showingHistory);
+      routeGuidanceTab.setAttribute("aria-selected", showingHistory ? "false" : "true");
+      routeHistoryTab.setAttribute("aria-selected", showingHistory ? "true" : "false");
+      routeGuidanceList.hidden = showingHistory;
+      routeHistoryList.hidden = !showingHistory;
+      routeGuidanceSummaryText.textContent = showingHistory
+        ? `경로 이력 ${routeHistory.length}건`
+        : routeGuidanceSummaryText.dataset.guidanceSummary || "";
+      updateRoutePanelVisibility();
+    }
+
+    function selectRouteHistory(history, item) {
+      activeRouteHistoryId = history.history_id || "";
+      routeHistoryList.querySelectorAll(".history-item").forEach((candidate) => {
+        candidate.classList.toggle("is-active", candidate === item);
+      });
+      if (qgisBridge && activeRouteHistoryId) {
+        qgisBridge.selectRouteHistory(activeRouteHistoryId);
+      }
+      setStatus(`${history.origin_name || "출발지"} → ${history.destination_name || "도착지"}`);
+    }
+
+    function renderRouteHistory(payload) {
+      const items = Array.isArray(payload.items) ? payload.items : [];
+      const previousHistoryId = activeRouteHistoryId;
+      routeHistory = items;
+      const selectedHistoryId = payload.selected_history_id || activeRouteHistoryId || "";
+      const selectedExists = items.some((history) => history.history_id === selectedHistoryId);
+      activeRouteHistoryId = selectedExists ? selectedHistoryId : "";
+      routeHistoryList.textContent = "";
+
+      if (previousHistoryId && !activeRouteHistoryId) {
+        renderRouteGuidance({ history_id: "", summary: {}, path: [], guides: [] });
+      }
+
+      if (!items.length) {
+        const empty = document.createElement("div");
+        empty.className = "history-empty";
+        empty.textContent = "아직 경로 이력이 없습니다.";
+        routeHistoryList.appendChild(empty);
+      }
+
+      items.forEach((history) => {
+        const item = document.createElement("div");
+        item.className = "history-item";
+        item.setAttribute("role", "option");
+        item.setAttribute("tabindex", "0");
+        if (history.history_id === activeRouteHistoryId) {
+          item.classList.add("is-active");
+        }
+
+        const title = document.createElement("span");
+        title.className = "history-title";
+        title.textContent = `${history.origin_name || "출발지"} → ${history.destination_name || "도착지"}`;
+
+        const summary = document.createElement("span");
+        summary.className = "history-meta";
+        summary.textContent = history.result_summary || [
+          formatGuidanceDuration(Number(history.duration_s)),
+          formatGuidanceDistance(Number(history.distance_m)),
+          `안내 ${Number(history.guidance_count) || 0}개`
+        ].filter(Boolean).join(" · ");
+
+        const options = document.createElement("span");
+        options.className = "history-meta";
+        const optionParts = [
+          routePriorityLabel(history.priority),
+          history.avoid ? `회피 ${history.avoid.split("|").filter(Boolean).length}` : "",
+          formatHistoryTime(history.searched_at)
+        ].filter(Boolean);
+        options.textContent = optionParts.join(" · ");
+
+        const actions = document.createElement("span");
+        actions.className = "history-actions";
+        [
+          ["불러오기", "loadRouteHistory"],
+          ["삭제", "deleteRouteHistory"],
+          ["내보내기", "exportRouteHistory"]
+        ].forEach(([label, bridgeMethod]) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.textContent = label;
+          button.addEventListener("click", (event) => {
+            event.stopPropagation();
+            if (bridgeMethod === "loadRouteHistory") {
+              if (history.input) {
+                window.loadRouteHistoryInput(history.input);
+                selectRouteHistory(history, item);
+                return;
+              }
+              setStatus("이력 입력 정보를 찾지 못했습니다.");
+            }
+            if (qgisBridge && history.history_id) {
+              qgisBridge[bridgeMethod](history.history_id);
+            } else {
+              setStatus("QGIS 경로 이력 연결이 준비되지 않았습니다.");
+            }
+          });
+          actions.appendChild(button);
+        });
+
+        item.append(title, summary, options, actions);
+        item.addEventListener("click", () => selectRouteHistory(history, item));
+        item.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            selectRouteHistory(history, item);
+          }
+        });
+        routeHistoryList.appendChild(item);
+      });
+
+      if (activeRoutePanelTab === "history") {
+        activateRoutePanelTab("history");
+      }
+      updateRouteControls();
+      updateRoutePanelVisibility();
+    }
+
+    function selectRouteGuidance(guide, item) {
+      activeGuidanceSequence = guide.sequence;
+      routeGuidanceList.querySelectorAll(".guidance-item").forEach((candidate) => {
+        candidate.classList.toggle("is-active", candidate === item);
+      });
+
+      moveViewer(guide.longitude, guide.latitude);
+      if (qgisBridge) {
+        qgisBridge.selectRouteGuidance(
+          guide.sequence,
+          guide.longitude,
+          guide.latitude
+        );
+      }
+      setStatus(`${guide.sequence}. ${guide.guidance}`);
+    }
+
+    function clearRoutePath() {
+      if (routePolyline) {
+        routePolyline.setMap(null);
+        routePolyline = null;
+      }
+    }
+
+    function renderRoutePath(path) {
+      clearRoutePath();
+      if (!map || !Array.isArray(path) || path.length < 2) {
+        return;
+      }
+
+      const linePath = path
+        .map((point) => ({
+          lat: Number(point.lat),
+          lon: Number(point.lon)
+        }))
+        .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lon))
+        .map((point) => new naver.maps.LatLng(point.lat, point.lon));
+
+      if (linePath.length < 2) {
+        return;
+      }
+
+      routePolyline = new naver.maps.Polyline({
+        map,
+        path: linePath,
+        strokeWeight: 5,
+        strokeColor: "#1976d2",
+        strokeOpacity: 0.9,
+        strokeStyle: "solid"
+      });
+
+      const bounds = new naver.maps.LatLngBounds();
+      linePath.forEach((point) => bounds.extend(point));
+      if (typeof map.fitBounds === "function") {
+        map.fitBounds(bounds);
+      }
+      scheduleStableRelayout();
+    }
+
+    function renderRouteGuidance(payload) {
+      const guides = Array.isArray(payload.guides) ? payload.guides : [];
+      routeGuidance = guides;
+      activeGuidanceSequence = null;
+      routeGuidanceList.textContent = "";
+      renderRoutePath(payload.path);
+
+      if (!guides.length) {
+        routeGuidanceSummaryText.dataset.guidanceSummary = "";
+        updateRoutePanelVisibility();
+        return;
+      }
+
+      const summary = payload.summary || {};
+      const vehicle = summary.vehicle || {};
+      const vehicleTypeLabels = {
+        1: "소형",
+        2: "중형",
+        3: "대형",
+        4: "대형 화물",
+        5: "특수 화물",
+        6: "경차",
+        7: "이륜차"
+      };
+      const summaryParts = [
+        formatGuidanceDuration(Number(summary.duration_s)),
+        formatGuidanceDistance(Number(summary.distance_m)),
+        Array.isArray(summary.avoid) && summary.avoid.length
+          ? `회피 ${summary.avoid.length}`
+          : "",
+        vehicleTypeLabels[vehicle.car_type] || "",
+        `안내 ${guides.length}개`
+      ].filter(Boolean);
+      routeGuidanceSummaryText.dataset.guidanceSummary = summaryParts.join(" · ");
+      routeGuidancePanel.dataset.collapsed = "false";
+      routeGuidanceToggle.textContent = "−";
+      routeGuidanceToggle.title = "경로 안내 접기";
+      routeGuidanceToggle.setAttribute("aria-label", "경로 안내 접기");
+
+      guides.forEach((guide) => {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "guidance-item";
+        item.setAttribute("role", "option");
+
+        const sequence = document.createElement("span");
+        sequence.className = "guidance-sequence";
+        sequence.textContent = String(guide.sequence);
+
+        const icon = document.createElement("span");
+        icon.className = `guidance-icon ${guide.category || "other"}`;
+        icon.textContent = guidanceIconText(guide.category);
+        icon.setAttribute("aria-hidden", "true");
+
+        const copy = document.createElement("span");
+        copy.className = "guidance-copy";
+
+        const title = document.createElement("span");
+        title.className = "guidance-title";
+        title.textContent = guide.guidance || guide.name || "경로 안내";
+
+        const meta = document.createElement("span");
+        meta.className = "guidance-meta";
+        const metaParts = [
+          formatGuidanceDistance(Number(guide.distance_m)),
+          formatGuidanceDuration(Number(guide.duration_s))
+        ].filter(Boolean);
+        meta.textContent = metaParts.length ? metaParts.join(" · ") : "현재 위치";
+
+        copy.append(title, meta);
+        item.append(sequence, icon, copy);
+        item.addEventListener("click", () => selectRouteGuidance(guide, item));
+        routeGuidanceList.appendChild(item);
+      });
+
+      activateRoutePanelTab("guidance");
+      updateRoutePanelVisibility();
+    }
+
+    function connectQgisBridgeSignals() {
+      if (!qgisBridge) {
+        return;
+      }
+
+      if (qgisBridge.routeStatusChanged) {
+        qgisBridge.routeStatusChanged.connect((success, message) => {
+          routeBusy = false;
+          updateRouteControls();
+          setStatus(message);
+        });
+      }
+      if (qgisBridge.localSearchResultsChanged) {
+        qgisBridge.localSearchResultsChanged.connect((payloadJson) => {
+          let payload = {};
+          try {
+            payload = JSON.parse(payloadJson);
+          } catch (_error) {
+            return;
+          }
+          const requestId = String(payload.request_id || "");
+          const pending = localSearchRequests.get(requestId);
+          if (!pending) {
+            return;
+          }
+          localSearchRequests.delete(requestId);
+          if (payload.success) {
+            pending.resolve(Array.isArray(payload.results) ? payload.results : []);
+          } else {
+            pending.reject(new Error(payload.message || "POI 검색에 실패했습니다."));
+          }
+        });
+      }
+      if (qgisBridge.routeGuidanceChanged) {
+        qgisBridge.routeGuidanceChanged.connect((payloadJson) => {
+          try {
+            renderRouteGuidance(JSON.parse(payloadJson));
+          } catch (error) {
+            routeGuidance = [];
+            clearRoutePath();
+            updateRoutePanelVisibility();
+            setStatus("경로 안내 목록을 표시하지 못했습니다.");
+          }
+        });
+      }
+      if (qgisBridge.routeHistoryChanged) {
+        qgisBridge.routeHistoryChanged.connect((payloadJson) => {
+          try {
+            renderRouteHistory(JSON.parse(payloadJson));
+          } catch (error) {
+            routeHistory = [];
+            updateRoutePanelVisibility();
+            setStatus("경로 이력 목록을 표시하지 못했습니다.");
+          }
+        });
+      }
+      if (qgisBridge.loadRouteHistoryInput) {
+        qgisBridge.loadRouteHistoryInput.connect((payloadJson) => {
+          try {
+            window.loadRouteHistoryInput(JSON.parse(payloadJson));
+          } catch (error) {
+            setStatus("경로 이력을 입력창으로 불러오지 못했습니다.");
+          }
+        });
+      }
+    }
+
+    function initQgisBridge() {
+      if (window.naverExternalBridge) {
+        qgisBridge = window.naverExternalBridge;
+        connectQgisBridgeSignals();
+        updateRouteControls();
+        setStatus("외부 브라우저 연동 모드로 QGIS와 연결했습니다.");
+        return;
+      }
+
+      if (!window.qt || !window.qt.webChannelTransport || !window.QWebChannel) {
+        return;
+      }
+
+      new QWebChannel(window.qt.webChannelTransport, (channel) => {
+        qgisBridge = channel.objects.qgisBridge;
+        connectQgisBridgeSignals();
+        updateRouteControls();
+      });
+    }
+
+    function currentMapCoordinate() {
+      if (!map) {
+        return null;
+      }
+      const center = map.getCenter();
+      return {
+        lon: center.getLng(),
+        lat: center.getLat()
+      };
+    }
+
+    function parseCoordinateInput(value) {
+      const separator = value.includes(",") ? /\s*,\s*/ : /\s+/;
+      const parts = value.trim().split(separator);
+      if (parts.length !== 2 || parts.some((part) => !part)) {
+        return null;
+      }
+
+      const first = Number(parts[0]);
+      const second = Number(parts[1]);
+      if (!Number.isFinite(first) || !Number.isFinite(second)) {
+        return null;
+      }
+
+      let lon = first;
+      let lat = second;
+      if (Math.abs(second) > 90 && Math.abs(first) <= 90) {
+        lon = second;
+        lat = first;
+      }
+
+      if (Math.abs(lon) > 180 || Math.abs(lat) > 90) {
+        return null;
+      }
+      return { lon, lat };
+    }
+
+    function formatCoordinate(coordinate) {
+      return `${coordinate.lon.toFixed(7)}, ${coordinate.lat.toFixed(7)}`;
+    }
+
+    function resolveRouteLocation(value) {
+      const query = value.trim();
+      const coordinate = parseCoordinateInput(query);
+      if (coordinate) {
+        return Promise.resolve(coordinate);
+      }
+      if (!query) {
+        return Promise.reject(new Error("입력값을 좌표나 장소로 해석할 수 없습니다."));
+      }
+
+      return geocodeAddress(query).then((results) => {
+        if (!results.length) {
+          throw new Error(`위치를 찾지 못했습니다: ${query}`);
+        }
+        return results[0];
+      });
+    }
+
+    function updateRouteControls() {
+      const hasOrigin = Boolean(routeOriginInput.value.trim());
+      const hasDestination = Boolean(routeDestinationInput.value.trim());
+      const waypointsReady = routeWaypoints.every((waypoint) => waypoint.input.value.trim());
+      routeCreateButton.disabled = routeBusy || !(hasOrigin && hasDestination && waypointsReady);
+      routeHistoryOpenButton.disabled = routeBusy || !qgisBridge;
+      routeResetButton.disabled = routeBusy || !(hasOrigin || hasDestination || routeWaypoints.length);
+      routeSwapButton.disabled = !map || routeBusy || !(hasOrigin || hasDestination);
+      routePrioritySelect.disabled = !map || routeBusy;
+      routeAvoidToggle.disabled = !map || routeBusy;
+      routeAvoidCheckboxes.forEach((checkbox) => {
+        checkbox.disabled = !map || routeBusy;
+      });
+      routeVehicleToggle.disabled = !map || routeBusy;
+      routeCarType.disabled = !map || routeBusy;
+      routeCarFuel.disabled = !map || routeBusy;
+      routeCarHipass.disabled = !map || routeBusy;
+      routeAddWaypointButton.disabled = !map || routeBusy || routeWaypoints.length >= maxRouteWaypoints;
+      routeOriginInput.disabled = !map || routeBusy;
+      routeDestinationInput.disabled = !map || routeBusy;
+      routeOriginCurrentButton.disabled = !map || routeBusy;
+      routeDestinationCurrentButton.disabled = !map || routeBusy;
+      routeWaypoints.forEach((waypoint, index) => {
+        waypoint.input.disabled = !map || routeBusy;
+        waypoint.currentButton.disabled = !map || routeBusy;
+        waypoint.removeButton.disabled = routeBusy;
+        waypoint.upButton.disabled = routeBusy || index === 0;
+        waypoint.downButton.disabled = routeBusy || index === routeWaypoints.length - 1;
+      });
+    }
+
+    function publishRoutePoint(role, coordinate) {
+      if (qgisBridge && coordinate) {
+        qgisBridge.setRoutePoint(role, coordinate.lon, coordinate.lat);
+      }
+    }
+
+    function applyRouteSearchResult(
+      input,
+      pointId,
+      label,
+      coordinate,
+      displayValue,
+      onResolved
+    ) {
+      input.value = displayValue || formatCoordinate(coordinate);
+      onResolved(coordinate);
+      publishRoutePoint(pointId, coordinate);
+      searchResults.hidden = true;
+
+      if (map) {
+        map.setZoom(16);
+        moveViewer(coordinate.lon, coordinate.lat, { suppressBridge: true });
+      }
+      if (qgisBridge) {
+        qgisBridge.moveQgisCenter(coordinate.lon, coordinate.lat);
+      }
+      setStatus(
+        `${label} 지정: ${coordinate.lat.toFixed(6)}, ${coordinate.lon.toFixed(6)}`
+      );
+      updateRouteControls();
+    }
+
+    function searchRouteInput(
+      input,
+      pointIdProvider,
+      labelProvider,
+      onResolved,
+      selectFirst = false
+    ) {
+      const query = input.value.trim();
+      if (!query) {
+        return;
+      }
+
+      const pointId = pointIdProvider();
+      const label = labelProvider();
+      const coordinate = parseCoordinateInput(query);
+      if (coordinate) {
+        applyRouteSearchResult(
+          input,
+          pointId,
+          label,
+          coordinate,
+          formatCoordinate(coordinate),
+          onResolved
+        );
+        return;
+      }
+
+      searchLocal(
+        query,
+        (result) => {
+          applyRouteSearchResult(
+            input,
+            pointId,
+            label,
+            { lon: result.lon, lat: result.lat },
+            result.title || result.address,
+            onResolved
+          );
+        },
+        false,
+        selectFirst
+      );
+    }
+
+    function bindRouteInput(input, pointIdProvider, labelProvider, onResolved) {
+      input.addEventListener("input", () => {
+        onResolved(null);
+        searchRequestId += 1;
+        searchResults.hidden = true;
+        if (qgisBridge) {
+          qgisBridge.clearRoutePoint(pointIdProvider());
+        }
+        updateRouteControls();
+
+        window.clearTimeout(routeSearchTimer);
+        if (!input.value.trim()) {
+          return;
+        }
+        routeSearchTimer = window.setTimeout(() => {
+          searchRouteInput(input, pointIdProvider, labelProvider, onResolved);
+        }, 500);
+      });
+
+      input.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") {
+          return;
+        }
+        event.preventDefault();
+        window.clearTimeout(routeSearchTimer);
+        searchRouteInput(
+          input,
+          pointIdProvider,
+          labelProvider,
+          onResolved,
+          true
+        );
+      });
+    }
+
+    function waypointPointId(waypoint) {
+      return `waypoint:${waypoint.id}`;
+    }
+
+    function updateWaypointLabels() {
+      routeWaypoints.forEach((waypoint, index) => {
+        waypoint.label.textContent = `경유 ${index + 1}`;
+        waypoint.input.setAttribute("aria-label", `경유지 ${index + 1}`);
+        waypoint.currentButton.title = `현재 지도 중심을 경유지 ${index + 1}로 사용`;
+        waypoint.removeButton.title = `경유지 ${index + 1} 삭제`;
+        waypoint.removeButton.setAttribute("aria-label", `경유지 ${index + 1} 삭제`);
+        waypoint.upButton.title = `경유지 ${index + 1} 위로 이동`;
+        waypoint.upButton.setAttribute("aria-label", `경유지 ${index + 1} 위로 이동`);
+        waypoint.downButton.title = `경유지 ${index + 1} 아래로 이동`;
+        waypoint.downButton.setAttribute("aria-label", `경유지 ${index + 1} 아래로 이동`);
+      });
+    }
+
+    function moveWaypoint(waypoint, offset) {
+      const index = routeWaypoints.indexOf(waypoint);
+      const targetIndex = index + offset;
+      if (index < 0 || targetIndex < 0 || targetIndex >= routeWaypoints.length) {
+        return;
+      }
+
+      window.clearTimeout(routeSearchTimer);
+      searchRequestId += 1;
+      searchResults.hidden = true;
+      routeWaypoints.splice(index, 1);
+      routeWaypoints.splice(targetIndex, 0, waypoint);
+      routeWaypointsContainer.replaceChildren(
+        ...routeWaypoints.map((candidate) => candidate.row)
+      );
+      updateWaypointLabels();
+      updateRouteControls();
+      setStatus(`경유지 ${targetIndex + 1} 순서로 이동했습니다.`);
+    }
+
+    function swapRouteEndpoints() {
+      window.clearTimeout(routeSearchTimer);
+      searchRequestId += 1;
+      searchResults.hidden = true;
+
+      const originValue = routeOriginInput.value;
+      routeOriginInput.value = routeDestinationInput.value;
+      routeDestinationInput.value = originValue;
+      [routeOrigin, routeDestination] = [routeDestination, routeOrigin];
+
+      if (qgisBridge) {
+        qgisBridge.clearRoutePoint("origin");
+        qgisBridge.clearRoutePoint("destination");
+        publishRoutePoint("origin", routeOrigin);
+        publishRoutePoint("destination", routeDestination);
+      }
+      updateRouteControls();
+      setStatus("출발지와 도착지를 바꿨습니다.");
+    }
+
+    function removeWaypoint(waypoint) {
+      const index = routeWaypoints.indexOf(waypoint);
+      if (index < 0) {
+        return;
+      }
+      window.clearTimeout(routeSearchTimer);
+      searchRequestId += 1;
+      searchResults.hidden = true;
+      if (qgisBridge) {
+        qgisBridge.clearRoutePoint(waypointPointId(waypoint));
+      }
+      routeWaypoints.splice(index, 1);
+      waypoint.row.remove();
+      updateWaypointLabels();
+      updateRouteControls();
+      setStatus("경유지를 삭제했습니다.");
+    }
+
+    function addWaypoint() {
+      if (routeWaypoints.length >= maxRouteWaypoints) {
+        setStatus(`경유지는 최대 ${maxRouteWaypoints}개까지 추가할 수 있습니다.`);
+        return;
+      }
+
+      const row = document.createElement("div");
+      row.className = "route-waypoint";
+
+      const label = document.createElement("span");
+      label.className = "route-label";
+
+      const input = document.createElement("input");
+      input.className = "route-input";
+      input.type = "text";
+        input.placeholder = "장소, 주소 또는 경도,위도";
+      input.autocomplete = "off";
+
+      const currentButton = document.createElement("button");
+      currentButton.className = "route-current";
+      currentButton.type = "button";
+      currentButton.textContent = "현재 위치";
+
+      const removeButton = document.createElement("button");
+      removeButton.className = "route-waypoint-remove";
+      removeButton.type = "button";
+      removeButton.textContent = "×";
+
+      const orderContainer = document.createElement("span");
+      orderContainer.className = "route-waypoint-order";
+
+      const upButton = document.createElement("button");
+      upButton.type = "button";
+      upButton.textContent = "↑";
+
+      const downButton = document.createElement("button");
+      downButton.type = "button";
+      downButton.textContent = "↓";
+
+      const waypoint = {
+        id: nextWaypointId++,
+        coordinate: null,
+        row,
+        label,
+        input,
+        currentButton,
+        removeButton,
+        upButton,
+        downButton
+      };
+
+      bindRouteInput(
+        input,
+        () => waypointPointId(waypoint),
+        () => `경유지 ${routeWaypoints.indexOf(waypoint) + 1}`,
+        (coordinate) => {
+          waypoint.coordinate = coordinate;
+        }
+      );
+
+      currentButton.addEventListener("click", () => {
+        window.clearTimeout(routeSearchTimer);
+        searchRequestId += 1;
+        searchResults.hidden = true;
+        waypoint.coordinate = currentMapCoordinate();
+        if (waypoint.coordinate) {
+          input.value = formatCoordinate(waypoint.coordinate);
+          publishRoutePoint(waypointPointId(waypoint), waypoint.coordinate);
+          const index = routeWaypoints.indexOf(waypoint) + 1;
+          setStatus(
+            `경유지 ${index}: ${waypoint.coordinate.lat.toFixed(6)}, ` +
+            waypoint.coordinate.lon.toFixed(6)
+          );
+        }
+        updateRouteControls();
+      });
+
+      removeButton.addEventListener("click", () => removeWaypoint(waypoint));
+      upButton.addEventListener("click", () => moveWaypoint(waypoint, -1));
+      downButton.addEventListener("click", () => moveWaypoint(waypoint, 1));
+      orderContainer.append(upButton, downButton);
+
+      row.append(label, input, currentButton, orderContainer, removeButton);
+      routeWaypoints.push(waypoint);
+      routeWaypointsContainer.appendChild(row);
+      updateWaypointLabels();
+      updateRouteControls();
+      input.focus();
+      setStatus(`${routeWaypoints.length}번째 경유지를 추가했습니다.`);
+    }
+
+    function clearRouteInputs(resetOptions = true) {
+      window.clearTimeout(routeSearchTimer);
+      searchRequestId += 1;
+      searchResults.hidden = true;
+      routeOrigin = null;
+      routeDestination = null;
+      routeOriginInput.value = "";
+      routeDestinationInput.value = "";
+      routeWaypoints.forEach((waypoint) => waypoint.row.remove());
+      routeWaypoints.length = 0;
+      nextWaypointId = 1;
+
+      if (resetOptions) {
+        routePrioritySelect.value = "RECOMMEND";
+        routeAvoidCheckboxes.forEach((checkbox) => {
+          checkbox.checked = false;
+        });
+        routeCarType.value = "1";
+        routeCarFuel.value = "GASOLINE";
+        routeCarHipass.checked = false;
+      }
+
+      routeAvoidOptions.hidden = true;
+      routeAvoidToggle.setAttribute("aria-expanded", "false");
+      updateRouteAvoidSummary();
+      routeVehicleOptions.hidden = true;
+      routeVehicleToggle.setAttribute("aria-expanded", "false");
+      updateRouteVehicleSummary();
+      if (qgisBridge) {
+        qgisBridge.clearRoutePoints();
+      }
+      updateRouteControls();
+    }
+
+    function routeInputLabel(location, fallback) {
+      const label = location && location.label ? String(location.label).trim() : "";
+      if (label) {
+        return label;
+      }
+      if (
+        location &&
+        Number.isFinite(Number(location.lon)) &&
+        Number.isFinite(Number(location.lat))
+      ) {
+        return formatCoordinate({
+          lon: Number(location.lon),
+          lat: Number(location.lat)
+        });
+      }
+      return fallback;
+    }
+
+    function applyLoadedRoutePoint(pointId, location) {
+      const coordinate = {
+        lon: Number(location.lon),
+        lat: Number(location.lat)
+      };
+      if (!Number.isFinite(coordinate.lon) || !Number.isFinite(coordinate.lat)) {
+        return null;
+      }
+      publishRoutePoint(pointId, coordinate);
+      return coordinate;
+    }
+
+    function syncNaverMapToQgis() {
+      if (isBridgeSyncSuppressed()) {
+        return;
+      }
+      const position = map.getCenter();
+      const lat = position.getLat();
+      const lon = position.getLng();
+      marker.setPosition(position);
+
+      if (!qgisBridge) {
+        setStatus("Naver Map moved, but the QGIS bridge is not ready.");
+        return;
+      }
+
+      qgisBridge.moveQgisCenter(lon, lat);
+      setStatus(`Naver Map -> QGIS EPSG:4326 ${lat.toFixed(6)}, ${lon.toFixed(6)}.`);
+    }
+
+    function scheduleNaverMapSync() {
+      if (isBridgeSyncSuppressed()) {
+        return;
+      }
+      if (mapSyncTimer !== null) {
+        return;
+      }
+
+      mapSyncTimer = window.setTimeout(() => {
+        mapSyncTimer = null;
+        syncNaverMapToQgis();
+      }, 120);
+    }
+
+    function syncRoadviewStateToQgis() {
+      if (!qgisBridge || !roadview) {
+        return;
+      }
+
+      const position = currentRoadviewCoordinate();
+      const viewpoint = roadview.getPov();
+      if (!position || !viewpoint) {
+        return;
+      }
+
+      const lon = position.getLng();
+      const lat = position.getLat();
+      const pan = Number(viewpoint.pan);
+      const tilt = Number(viewpoint.tilt);
+      const zoom = Number(viewpoint.fov);
+      if (![lon, lat, pan, tilt, zoom].every(Number.isFinite)) {
+        return;
+      }
+
+      const panoId = roadview.getPanoId();
+      qgisBridge.updateRoadviewState(
+        lon,
+        lat,
+        pan,
+        tilt,
+        zoom,
+        panoId === null || panoId === undefined ? "" : String(panoId)
+      );
+    }
+
+    function scheduleRoadviewStateSync() {
+      if (roadviewStateTimer !== null) {
+        return;
+      }
+
+      roadviewStateTimer = window.setTimeout(() => {
+        roadviewStateTimer = null;
+        syncRoadviewStateToQgis();
+      }, 100);
+    }
+
+    function normalizeAddressResult(address) {
+      if (address.point) {
+        const detail = address.address || "주소 검색 결과";
+        return {
+          title: detail,
+          address: detail,
+          lon: Number(address.point.x),
+          lat: Number(address.point.y)
+        };
+      }
+
+      const detail = address.roadAddress || address.jibunAddress || address.englishAddress || "주소 검색 결과";
+
+      return {
+        title: detail,
+        address: detail,
+        lon: Number(address.x),
+        lat: Number(address.y)
+      };
+    }
+
+    function geocodeAddress(query) {
+      function requestGeocode(options) {
+        if (!geocoderService) {
+          return Promise.resolve([]);
+        }
+
+        return new Promise((resolve) => {
+          let settled = false;
+          const timer = window.setTimeout(() => {
+            if (!settled) {
+              settled = true;
+              resolve([]);
+            }
+          }, 5000);
+
+          geocoderService.geocode(options, (status, response) => {
+            if (settled) {
+              return;
+            }
+            settled = true;
+            window.clearTimeout(timer);
+            const v2 = response && response.v2 ? response.v2 : {};
+            const legacyItems =
+              response &&
+              response.result &&
+              Array.isArray(response.result.items)
+                ? response.result.items
+                : [];
+            const addresses = Array.isArray(v2.addresses) ? v2.addresses : [];
+            const ok =
+              status === naver.maps.Service.Status.OK ||
+              v2.status === "OK" ||
+              legacyItems.length > 0;
+
+            if (!ok) {
+              resolve([]);
+              return;
+            }
+
+            resolve([...addresses, ...legacyItems].map(normalizeAddressResult));
+          });
+        });
+      }
+
+      function requestPoiSearch() {
+        lastLocalSearchError = "";
+        if (!qgisBridge || typeof qgisBridge.requestLocalSearch !== "function") {
+          return Promise.resolve([]);
+        }
+
+        const requestId = `local:${Date.now()}:${nextLocalSearchRequestId++}`;
+        return new Promise((resolve, reject) => {
+          const timer = window.setTimeout(() => {
+            localSearchRequests.delete(requestId);
+            reject(new Error("POI 검색 응답 시간이 초과되었습니다."));
+          }, 8000);
+
+          localSearchRequests.set(requestId, {
+            resolve(results) {
+              window.clearTimeout(timer);
+              resolve(results);
+            },
+            reject(error) {
+              window.clearTimeout(timer);
+              reject(error);
+            }
+          });
+          qgisBridge.requestLocalSearch(requestId, query);
+        }).catch((error) => {
+          console.warn("Naver API HUB local search failed", error);
+          lastLocalSearchError =
+            error && error.message ? error.message : "POI 검색에 실패했습니다.";
+          return [];
+        });
+      }
+
+      const baseOptions = {
+        count: 20
+      };
+      const coordinate = currentMapCoordinate();
+      if (coordinate) {
+        baseOptions.coordinate = `${coordinate.lon},${coordinate.lat}`;
+      }
+
+      return requestPoiSearch().then((poiResults) => {
+        if (poiResults.length) {
+          return poiResults;
+        }
+        return requestGeocode({ ...baseOptions, query }).then((results) => {
+          if (results.length) {
+            return results;
+          }
+          return requestGeocode({ ...baseOptions, address: query });
+        });
+      });
+    }
+
+    function selectSearchResult(result) {
+      map.setZoom(16);
+      moveViewer(result.lon, result.lat, { suppressBridge: true });
+      searchResults.hidden = true;
+
+      if (qgisBridge) {
+        qgisBridge.moveQgisCenter(result.lon, result.lat);
+      }
+      setStatus(`Search -> QGIS EPSG:4326 ${result.lat.toFixed(6)}, ${result.lon.toFixed(6)}.`);
+    }
+
+    function renderSearchResults(results, onSelect = selectSearchResult) {
+      searchResults.textContent = "";
+
+      if (!results.length) {
+        const empty = document.createElement("div");
+        empty.className = "search-empty";
+        empty.textContent = "검색 결과가 없습니다.";
+        searchResults.appendChild(empty);
+        searchResults.hidden = false;
+        return;
+      }
+
+      results.slice(0, 20).forEach((result) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "search-result";
+        button.setAttribute("role", "option");
+
+        const title = document.createElement("span");
+        title.className = "search-result-title";
+        title.textContent = result.title;
+
+        const address = document.createElement("span");
+        address.className = "search-result-address";
+        address.textContent = result.address;
+
+        button.appendChild(title);
+        button.appendChild(address);
+        button.addEventListener("click", () => onSelect(result));
+        searchResults.appendChild(button);
+      });
+
+      searchResults.hidden = false;
+    }
+
+    function searchLocal(
+      query,
+      onSelect = selectSearchResult,
+      manageSearchButton = true,
+      selectFirst = false
+    ) {
+      const coordinate = parseCoordinateInput(query);
+      if (coordinate) {
+        const result = {
+          title: "입력 좌표",
+          address: formatCoordinate(coordinate),
+          lon: coordinate.lon,
+          lat: coordinate.lat,
+          source: "coordinate"
+        };
+        searchResults.hidden = true;
+        onSelect(result);
+        return;
+      }
+
+      if (!qgisBridge && !geocoderService) {
+        setStatus("Naver POI/address search is not ready.");
+        return;
+      }
+
+      const requestId = ++searchRequestId;
+      const collected = [];
+      let failed = false;
+      lastLocalSearchError = "";
+
+      if (manageSearchButton) {
+        searchSubmit.disabled = true;
+      }
+      setStatus(`Searching Naver POI/address: ${query}`);
+
+      geocodeAddress(query)
+        .then((resultsFromGeocoder) => {
+          if (requestId !== searchRequestId) {
+            return;
+          }
+          collected.push(...resultsFromGeocoder);
+          if (!resultsFromGeocoder.length) {
+            failed = true;
+          }
+
+          const unique = new Map();
+          collected.forEach((result) => {
+            if (!Number.isFinite(result.lon) || !Number.isFinite(result.lat)) {
+              return;
+            }
+            const key = `${result.lon.toFixed(7)},${result.lat.toFixed(7)},${result.title}`;
+            if (!unique.has(key)) {
+              unique.set(key, result);
+            }
+          });
+
+          const results = Array.from(unique.values());
+          if (selectFirst && results.length) {
+            searchResults.hidden = true;
+            onSelect(results[0]);
+            return;
+          }
+          renderSearchResults(results, onSelect);
+          setStatus(failed && !results.length
+            ? (lastLocalSearchError || "POI/주소 검색 결과가 없습니다.")
+            : `Naver POI/address search results: ${results.length}`);
+        })
+        .catch((error) => {
+          if (requestId === searchRequestId) {
+            renderSearchResults([]);
+            setStatus(error && error.message ? error.message : "주소 검색 중 오류가 발생했습니다.");
+          }
+        })
+        .finally(() => {
+          if (requestId === searchRequestId && manageSearchButton) {
+            searchSubmit.disabled = false;
+          }
+        });
+    }
+
+    function loadNaverScript(appKey) {
+      return new Promise((resolve, reject) => {
+        if (
+          window.naver &&
+          window.naver.maps &&
+          window.naver.maps.Panorama &&
+          window.naver.maps.Service
+        ) {
+          resolve();
+          return;
+        }
+
+        const callbackName = `initNaverQgisBridge${Date.now()}`;
+        const script = document.createElement("script");
+        window[callbackName] = () => {
+          delete window[callbackName];
+          resolve();
+        };
+        script.src =
+          "https://oapi.map.naver.com/openapi/v3/maps.js" +
+          `?ncpKeyId=${encodeURIComponent(appKey)}` +
+          "&submodules=panorama,geocoder" +
+          `&callback=${encodeURIComponent(callbackName)}`;
+        script.async = true;
+        script.onerror = () => {
+          delete window[callbackName];
+          reject(new Error("Failed to load Naver Maps JavaScript API."));
+        };
+        document.head.appendChild(script);
+      });
+    }
+
+    function initViewer() {
+      const center = new naver.maps.LatLng(defaultCenter.lat, defaultCenter.lon);
+      const mapElement = document.getElementById("map");
+      const roadviewElement = document.getElementById("roadview");
+
+      map = new naver.maps.Map(mapElement, {
+        center,
+        zoom: 16,
+        size: elementSize(mapElement)
+      });
+
+      marker = new naver.maps.Marker({
+        map,
+        position: center
+      });
+
+      naver.maps.Event.addListener(map, "drag", () => {
+        scheduleNaverMapSync();
+      });
+
+      naver.maps.Event.addListener(map, "center_changed", () => {
+        scheduleNaverMapSync();
+      });
+
+      naver.maps.Event.addListener(map, "zoom_changed", () => {
+        scheduleNaverMapSync();
+      });
+
+      naver.maps.Event.addListener(map, "dragend", () => {
+        window.clearTimeout(mapSyncTimer);
+        mapSyncTimer = null;
+        syncNaverMapToQgis();
+      });
+
+      naver.maps.Event.addListener(map, "idle", () => {
+        window.clearTimeout(mapSyncTimer);
+        mapSyncTimer = null;
+        syncNaverMapToQgis();
+      });
+
+      naver.maps.Event.addListener(map, "click", () => {
+        searchResults.hidden = true;
+      });
+
+      roadview = new naver.maps.Panorama("roadview", {
+        position: center,
+        size: elementSize(roadviewElement),
+        pov: {
+          pan: 0,
+          tilt: 0,
+          fov: 100
+        }
+      });
+      geocoderService = naver.maps.Service;
+      searchQuery.disabled = false;
+      searchSubmit.disabled = false;
+      routeOriginInput.disabled = false;
+      routeDestinationInput.disabled = false;
+      routeOriginCurrentButton.disabled = false;
+      routeDestinationCurrentButton.disabled = false;
+      routePrioritySelect.disabled = false;
+      routeAddWaypointButton.disabled = false;
+      updateRouteControls();
+      document.getElementById("open-history").disabled = false;
+
+      naver.maps.Event.addListener(roadview, "pano_changed", () => {
+        scheduleRoadviewStateSync();
+
+        if (isBridgeSyncSuppressed()) {
+          return;
+        }
+
+        const panoId = roadview.getPanoId();
+        if (programmaticRoadviewPanoId === panoId) {
+          programmaticRoadviewPanoId = null;
+          return;
+        }
+        programmaticRoadviewPanoId = null;
+
+        const position = currentRoadviewCoordinate();
+        if (!position) {
+          return;
+        }
+
+        const lat = position.getLat();
+        const lon = position.getLng();
+        map.setCenter(position);
+        marker.setPosition(position);
+
+        window.clearTimeout(roadviewSyncTimer);
+        roadviewSyncTimer = window.setTimeout(() => {
+          if (!qgisBridge) {
+            setStatus("Roadview moved, but the QGIS bridge is not ready.");
+            return;
+          }
+
+          qgisBridge.moveQgisCenter(lon, lat);
+          setStatus(`Roadview -> QGIS EPSG:4326 ${lat.toFixed(6)}, ${lon.toFixed(6)}.`);
+        }, 200);
+      });
+
+      naver.maps.Event.addListener(roadview, "pov_changed", () => {
+        scheduleRoadviewStateSync();
+      });
+
+      naver.maps.Event.addListener(roadview, "init", () => {
+        scheduleRoadviewStateSync();
+      });
+
+      setStatus("Ready. QGIS, Naver Map, and Street View position sync is active.");
+      moveViewer(defaultCenter.lon, defaultCenter.lat, { suppressBridge: true });
+      scheduleStableRelayout();
+
+      if (pendingCenter) {
+        moveViewer(pendingCenter.lon, pendingCenter.lat);
+        pendingCenter = null;
+      }
+    }
+
+    viewerLayoutSelect.addEventListener("change", () => {
+      applyViewerLayout(viewerLayoutSelect.value);
+    });
+
+    fullscreenToggle.addEventListener("click", async () => {
+      if (qgisBridge && typeof qgisBridge.toggleFullScreen === "function") {
+        await qgisBridge.toggleFullScreen();
+        scheduleStableRelayout();
+        return;
+      }
+
+      try {
+        await toggleBrowserFullScreen();
+      } catch (_error) {
+        setStatus("전체화면 전환을 사용할 수 없습니다.");
+      }
+    });
+
+    document.addEventListener("fullscreenchange", () => {
+      fullscreenToggle.textContent = document.fullscreenElement ? "⛶" : "⛶";
+      scheduleStableRelayout();
+    });
+
+    splitToggle.addEventListener("click", (event) => {
+      event.stopPropagation();
+      applyViewerLayout(swappedViewerLayout());
+    });
+
+    viewSplitter.addEventListener("pointerdown", (event) => {
+      if (event.target === splitToggle) {
+        return;
+      }
+      event.preventDefault();
+      viewSplitter.setPointerCapture(event.pointerId);
+
+      const updateSplitFromPointer = (pointerEvent) => {
+        const rect = viewer.getBoundingClientRect();
+        const horizontal = isHorizontalSplitLayout();
+        const headerHeight = searchForm.closest("header").offsetHeight;
+        const footerHeight = document.getElementById("status-bar").offsetHeight;
+        const available = horizontal
+          ? Math.max(1, rect.height - headerHeight - footerHeight)
+          : Math.max(1, rect.width);
+        const offset = horizontal
+          ? pointerEvent.clientY - rect.top - headerHeight
+          : pointerEvent.clientX - rect.left;
+        applyViewerSplit((offset / available) * 100);
+      };
+
+      const stopDrag = (pointerEvent) => {
+        viewSplitter.releasePointerCapture(pointerEvent.pointerId);
+        viewSplitter.removeEventListener("pointermove", updateSplitFromPointer);
+        viewSplitter.removeEventListener("pointerup", stopDrag);
+        viewSplitter.removeEventListener("pointercancel", stopDrag);
+        scheduleStableRelayout();
+      };
+
+      viewSplitter.addEventListener("pointermove", updateSplitFromPointer);
+      viewSplitter.addEventListener("pointerup", stopDrag);
+      viewSplitter.addEventListener("pointercancel", stopDrag);
+      updateSplitFromPointer(event);
+    });
+
+    window.addEventListener("resize", () => {
+      updateSplitterState();
+      scheduleStableRelayout();
+    });
+
+    window.addEventListener("focus", scheduleStableRelayout);
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) {
+        scheduleStableRelayout();
+      }
+    });
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", scheduleStableRelayout);
+      window.visualViewport.addEventListener("scroll", scheduleStableRelayout);
+    }
+
+    if (window.ResizeObserver) {
+      const viewerResizeObserver = new ResizeObserver(() => {
+        updateSplitterState();
+        scheduleStableRelayout();
+      });
+      viewerResizeObserver.observe(viewer);
+    }
+
+    document.getElementById("open-history").addEventListener("click", () => {
+      const position = currentRoadviewCoordinate() || (map && map.getCenter());
+      if (!position || !qgisBridge) {
+        setStatus("The Naver Street View link is not ready.");
+        return;
+      }
+
+      qgisBridge.openNaverRoadview(position.getLng(), position.getLat());
+    });
+
+    searchForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const query = searchQuery.value.trim();
+      if (!query) {
+        searchQuery.focus();
+        return;
+      }
+      searchLocal(query);
+    });
+
+    searchQuery.addEventListener("input", () => {
+      searchClear.disabled = !searchQuery.value;
+    });
+
+    searchQuery.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        searchResults.hidden = true;
+      }
+    });
+
+    searchClear.addEventListener("click", () => {
+      searchRequestId += 1;
+      searchQuery.value = "";
+      searchResults.textContent = "";
+      searchResults.hidden = true;
+      searchClear.disabled = true;
+      searchSubmit.disabled = false;
+      searchQuery.focus();
+    });
+
+    routeGuidanceToggle.addEventListener("click", () => {
+      const collapsed = routeGuidancePanel.dataset.collapsed === "true";
+      routeGuidancePanel.dataset.collapsed = collapsed ? "false" : "true";
+      routeGuidanceToggle.textContent = collapsed ? "−" : "+";
+      const label = collapsed ? "경로 안내 접기" : "경로 안내 펼치기";
+      routeGuidanceToggle.title = label;
+      routeGuidanceToggle.setAttribute("aria-label", label);
+    });
+
+    routeGuidanceTab.addEventListener("click", () => {
+      activateRoutePanelTab("guidance");
+    });
+
+    routeHistoryTab.addEventListener("click", () => {
+      activateRoutePanelTab("history");
+    });
+
+    routeHistoryOpenButton.addEventListener("click", () => {
+      if (qgisBridge && qgisBridge.refreshRouteHistory) {
+        qgisBridge.refreshRouteHistory();
+      }
+      routeGuidancePanel.dataset.collapsed = "false";
+      routeGuidanceToggle.textContent = "−";
+      routeGuidanceToggle.title = "경로 안내 접기";
+      routeGuidanceToggle.setAttribute("aria-label", "경로 안내 접기");
+      activateRoutePanelTab("history");
+      routeGuidancePanel.scrollIntoView({ block: "nearest" });
+      setStatus(routeHistory.length ? "경로 이력을 열었습니다." : "경로 이력을 확인하고 있습니다.");
+    });
+
+    routeAddWaypointButton.addEventListener("click", addWaypoint);
+
+    routePrioritySelect.addEventListener("change", () => {
+      const label = routePrioritySelect.options[routePrioritySelect.selectedIndex].text;
+      setStatus(`경로 유형: ${label}`);
+    });
+
+    routeAvoidToggle.addEventListener("click", () => {
+      const opening = routeAvoidOptions.hidden;
+      routeAvoidOptions.hidden = !opening;
+      routeAvoidToggle.setAttribute("aria-expanded", opening ? "true" : "false");
+      if (opening) {
+        routeVehicleOptions.hidden = true;
+        routeVehicleToggle.setAttribute("aria-expanded", "false");
+      }
+    });
+
+    routeAvoidCheckboxes.forEach((checkbox) => {
+      checkbox.addEventListener("change", () => {
+        updateRouteAvoidSummary();
+        const count = selectedRouteAvoidOptions().length;
+        setStatus(count ? `경로 회피 옵션 ${count}개 선택` : "경로 회피 옵션 없음");
+      });
+    });
+
+    routeVehicleToggle.addEventListener("click", () => {
+      const opening = routeVehicleOptions.hidden;
+      routeVehicleOptions.hidden = !opening;
+      routeVehicleToggle.setAttribute("aria-expanded", opening ? "true" : "false");
+      if (opening) {
+        routeAvoidOptions.hidden = true;
+        routeAvoidToggle.setAttribute("aria-expanded", "false");
+      }
+    });
+
+    [routeCarType, routeCarFuel, routeCarHipass].forEach((control) => {
+      control.addEventListener("change", () => {
+        updateRouteVehicleSummary();
+        setStatus(routeVehicleToggle.title);
+      });
+    });
+
+    routeSwapButton.addEventListener("click", swapRouteEndpoints);
+
+    bindRouteInput(
+      routeOriginInput,
+      () => "origin",
+      () => "출발지",
+      (coordinate) => {
+        routeOrigin = coordinate;
+      }
+    );
+
+    bindRouteInput(
+      routeDestinationInput,
+      () => "destination",
+      () => "도착지",
+      (coordinate) => {
+        routeDestination = coordinate;
+      }
+    );
+
+    routeOriginCurrentButton.addEventListener("click", () => {
+      window.clearTimeout(routeSearchTimer);
+      searchRequestId += 1;
+      searchResults.hidden = true;
+      routeOrigin = currentMapCoordinate();
+      if (routeOrigin) {
+        routeOriginInput.value = formatCoordinate(routeOrigin);
+        publishRoutePoint("origin", routeOrigin);
+        setStatus(`출발지: ${routeOrigin.lat.toFixed(6)}, ${routeOrigin.lon.toFixed(6)}`);
+      }
+      updateRouteControls();
+    });
+
+    routeDestinationCurrentButton.addEventListener("click", () => {
+      window.clearTimeout(routeSearchTimer);
+      searchRequestId += 1;
+      searchResults.hidden = true;
+      routeDestination = currentMapCoordinate();
+      if (routeDestination) {
+        routeDestinationInput.value = formatCoordinate(routeDestination);
+        publishRoutePoint("destination", routeDestination);
+        setStatus(`도착지: ${routeDestination.lat.toFixed(6)}, ${routeDestination.lon.toFixed(6)}`);
+      }
+      updateRouteControls();
+    });
+
+    routeCreateButton.addEventListener("click", async () => {
+      if (!qgisBridge) {
+        setStatus("QGIS route bridge is not ready.");
+        return;
+      }
+
+      window.clearTimeout(routeSearchTimer);
+      searchRequestId += 1;
+      searchResults.hidden = true;
+      routeAvoidOptions.hidden = true;
+      routeAvoidToggle.setAttribute("aria-expanded", "false");
+      routeVehicleOptions.hidden = true;
+      routeVehicleToggle.setAttribute("aria-expanded", "false");
+      routeBusy = true;
+      updateRouteControls();
+      setStatus("출발지, 경유지, 도착지를 확인하고 있습니다...");
+
+      try {
+        const locations = await Promise.all([
+          routeOrigin || resolveRouteLocation(routeOriginInput.value),
+          ...routeWaypoints.map((waypoint) => (
+            waypoint.coordinate || resolveRouteLocation(waypoint.input.value)
+          )),
+          routeDestination || resolveRouteLocation(routeDestinationInput.value)
+        ]);
+        routeOrigin = locations[0];
+        routeDestination = locations[locations.length - 1];
+        routeWaypoints.forEach((waypoint, index) => {
+          waypoint.coordinate = locations[index + 1];
+        });
+      } catch (error) {
+        routeBusy = false;
+        setStatus(error.message);
+        updateRouteControls();
+        return;
+      }
+
+      publishRoutePoint("origin", routeOrigin);
+      publishRoutePoint("destination", routeDestination);
+      routeWaypoints.forEach((waypoint) => {
+        publishRoutePoint(waypointPointId(waypoint), waypoint.coordinate);
+      });
+      const waypointPayload = routeWaypoints.map((waypoint) => ({
+        id: waypointPointId(waypoint),
+        label: waypoint.input.value.trim(),
+        lon: waypoint.coordinate.lon,
+        lat: waypoint.coordinate.lat
+      }));
+      setStatus(
+        routeWaypoints.length
+          ? `경유지 ${routeWaypoints.length}개를 포함한 경로를 탐색하고 있습니다...`
+          : "Naver Directions 경로를 탐색하고 있습니다..."
+      );
+      qgisBridge.requestRoute(
+        routeOrigin.lon,
+        routeOrigin.lat,
+        routeDestination.lon,
+        routeDestination.lat,
+        routePrioritySelect.value,
+        JSON.stringify(waypointPayload),
+        JSON.stringify(selectedRouteAvoidOptions()),
+        JSON.stringify(selectedRouteVehicleOptions()),
+        routeOriginInput.value.trim(),
+        routeDestinationInput.value.trim()
+      );
+    });
+
+    routeResetButton.addEventListener("click", () => {
+      clearRouteInputs(true);
+      clearRoutePath();
+      setStatus("경로 지점을 초기화했습니다.");
+    });
+
+    function moveViewer(lon, lat, options = {}) {
+      const requestId = ++moveRequestId;
+      const position = new naver.maps.LatLng(lat, lon);
+      if (options.suppressBridge) {
+        suppressBridgeSync();
+      }
+      map.setCenter(position);
+      marker.setPosition(position);
+      if (requestId !== moveRequestId || !roadview) {
+        return;
+      }
+      programmaticRoadviewPanoId = roadview.getPanoId
+        ? roadview.getPanoId()
+        : null;
+      if (typeof roadview.setPosition === "function") {
+        roadview.setPosition(position);
+        setStatus(`EPSG:4326 ${lat.toFixed(6)}, ${lon.toFixed(6)} - Street View requested.`);
+      }
+    }
+
+    window.centerNaverMap = function centerNaverMap(lon, lat) {
+      if (!Number.isFinite(lon) || !Number.isFinite(lat)) {
+        setStatus("Invalid coordinate received from QGIS.");
+        return;
+      }
+
+      if (!map || !roadview) {
+        pendingCenter = { lon, lat };
+        setStatus(`Queued EPSG:4326 ${lat.toFixed(6)}, ${lon.toFixed(6)} until Naver API is ready.`);
+        return;
+      }
+
+      moveViewer(lon, lat, { suppressBridge: true });
+    };
+
+    window.loadRouteHistoryInput = function loadRouteHistoryInput(payload) {
+      clearRouteInputs(false);
+
+      const origin = payload.origin || {};
+      const destination = payload.destination || {};
+      routeOriginInput.value = routeInputLabel(origin, "출발지");
+      routeDestinationInput.value = routeInputLabel(destination, "도착지");
+      routeOrigin = applyLoadedRoutePoint("origin", origin);
+      routeDestination = applyLoadedRoutePoint("destination", destination);
+
+      const waypoints = Array.isArray(payload.waypoints)
+        ? payload.waypoints.slice(0, maxRouteWaypoints)
+        : [];
+      waypoints.forEach((waypointPayload) => {
+        addWaypoint();
+        const waypoint = routeWaypoints[routeWaypoints.length - 1];
+        waypoint.input.value = routeInputLabel(
+          waypointPayload,
+          `경유지 ${routeWaypoints.length}`
+        );
+        waypoint.coordinate = applyLoadedRoutePoint(
+          waypointPointId(waypoint),
+          waypointPayload
+        );
+      });
+
+      if (payload.priority && routePrioritySelect.querySelector(`option[value="${payload.priority}"]`)) {
+        routePrioritySelect.value = payload.priority;
+      }
+
+      const avoid = Array.isArray(payload.avoid) ? payload.avoid : [];
+      routeAvoidCheckboxes.forEach((checkbox) => {
+        checkbox.checked = avoid.includes(checkbox.value);
+      });
+      updateRouteAvoidSummary();
+
+      const vehicle = payload.vehicle || {};
+      if (vehicle.car_type !== undefined) {
+        routeCarType.value = String(vehicle.car_type);
+      }
+      if (vehicle.car_fuel) {
+        routeCarFuel.value = vehicle.car_fuel;
+      }
+      routeCarHipass.checked = Boolean(vehicle.car_hipass);
+      updateRouteVehicleSummary();
+
+      updateRouteControls();
+      if (routeOrigin) {
+        moveViewer(routeOrigin.lon, routeOrigin.lat);
+      }
+      setStatus("선택한 이력을 경로 입력창으로 불러왔습니다.");
+    };
+
+    updateRouteVehicleSummary();
+    applyViewerSplit(savedViewerSplit());
+    applyViewerLayout(savedViewerLayout());
+    initQgisBridge();
+
+    if (!naverAppKey) {
+      setStatus("Set NAVER_MAP_CLIENT_ID or navermap_qgis_bridge/settings.json before loading the viewer.");
+    } else {
+      loadNaverScript(naverAppKey)
+        .then(initViewer)
+        .catch((error) => setStatus(error.message));
+    }
+  </script>
+</body>
+</html>
+
+
