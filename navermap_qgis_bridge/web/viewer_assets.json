@@ -1,0 +1,15 @@
+{
+  "css": "viewer.css",
+  "scripts": [
+    "js/state.js",
+    "js/layout.js",
+    "js/viewer_utils.js",
+    "js/history_ui.js",
+    "js/bridge.js",
+    "js/route_inputs.js",
+    "js/sync.js",
+    "js/search.js",
+    "js/sdk_events.js",
+    "js/navigation.js"
+  ]
+}

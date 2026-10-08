@@ -5,3 +5,5 @@ settings.json
 navermap_qgis_bridge/settings.json
 .DS_Store
 Thumbs.db
+node_modules/
+dist/

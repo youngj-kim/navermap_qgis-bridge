@@ -17,6 +17,10 @@ QGIS 3.34 LTR 이상과 QGIS 4.x를 함께 고려한 NAVER Maps 연동 플러그
 - 출발지, 도착지, 최대 5개 경유지, 경로 안내 포인트 레이어 표시
 - 경로 이력 저장/불러오기와 GeoPackage, GeoJSON, Shapefile, GPX 내보내기
 
+## 개발 구조와 검증
+
+리팩토링된 모듈 책임과 웹 소스 조립 방식은 [REFACTORING.md](REFACTORING.md), 자동/수동 검증 절차는 [TESTING.md](TESTING.md)를 참고하세요. API 키는 로컬 설정에서만 제공하며 테스트는 placeholder와 합성 데이터를 사용합니다.
+
 ## 필요한 NAVER Cloud API
 
 NAVER Cloud Platform의 같은 Application에서 아래 API를 활성화하세요.
