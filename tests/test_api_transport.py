@@ -56,3 +56,30 @@ class ApiTransportTests(unittest.TestCase):
         self.transport.cancel_route()
         reply.abort.assert_called_once()
         reply.deleteLater.assert_called_once()
+
+    def test_route_timeout_releases_owner_before_notification(self):
+        timeout = Mock(side_effect=lambda: self.assertIsNone(self.transport.route_reply))
+        reply = self.transport.start_route("request", Mock(), timeout)
+        delay, expire = self.schedule.call_args.args
+        self.assertEqual(delay, 30000)
+        expire()
+        expire()
+        timeout.assert_called_once()
+        reply.abort.assert_called_once()
+
+    def test_old_route_timeout_cannot_cancel_replacement_or_completed_reply(self):
+        first, second = Mock(), Mock()
+        self.manager.get.side_effect = [first, second]
+        old_timeout, new_timeout = Mock(), Mock()
+        self.transport.start_route("A", Mock(), old_timeout)
+        old_expire = self.schedule.call_args.args[1]
+        self.transport.cancel_route()
+        self.transport.start_route("B", Mock(), new_timeout)
+        new_expire = self.schedule.call_args.args[1]
+        old_expire()
+        self.assertIs(self.transport.route_reply, second)
+        second.abort.assert_not_called()
+        self.transport.route_reply = None  # Completion releases ownership.
+        new_expire()
+        old_timeout.assert_not_called()
+        new_timeout.assert_not_called()

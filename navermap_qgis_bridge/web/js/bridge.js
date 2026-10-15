@@ -7,6 +7,7 @@
       if (qgisBridge.routeStatusChanged) {
         qgisBridge.routeStatusChanged.connect((success, message) => {
           routeBusy = false;
+          window.clearTimeout(routeWatchdog);
           updateRouteControls();
           setStatus(message);
         });
@@ -15,6 +16,9 @@
         qgisBridge.localSearchResultsChanged.connect(
           window.receiveLocalSearchResults
         );
+      }
+      if (qgisBridge.projectReset) {
+        qgisBridge.projectReset.connect(window.resetViewerProject);
       }
       if (qgisBridge.reverseSyncStatusChanged) {
         qgisBridge.reverseSyncStatusChanged.connect((message) => {
@@ -54,6 +58,28 @@
         });
       }
     }
+
+    window.resetViewerProject = function resetViewerProject() {
+      clearRouteInputs(true);
+      pendingCenter = null;
+      pendingView = null;
+      mapViewSnapshot = null;
+      routeGuidance = [];
+      activeGuidanceSequence = null;
+      activeRouteHistoryId = "";
+      renderRouteGuidance({path:[], guides:[], summary:{}});
+      for (const timer of [mapSyncTimer, roadviewSyncTimer, roadviewStateTimer]) {
+        window.clearTimeout(timer);
+      }
+      mapSyncTimer = roadviewSyncTimer = roadviewStateTimer = null;
+      localSearchRequests.forEach(pending => pending.reject(new Error("프로젝트가 전환되었습니다.")));
+      localSearchRequests.clear();
+      searchSubmit.disabled = !map;
+      searchResults.textContent = "";
+      mapDragActive = false;
+      updateRoutePanelVisibility();
+      setStatus("프로젝트가 전환되어 현재 경로를 초기화했습니다. 세션 이력은 유지됩니다.");
+    };
 
     window.receiveLocalSearchResults = function receiveLocalSearchResults(payloadJson) {
       let payload = {};

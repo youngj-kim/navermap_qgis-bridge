@@ -31,6 +31,7 @@
     const routeAddWaypointButton = document.getElementById("route-add-waypoint");
     const routeWaypointsContainer = document.getElementById("route-waypoints");
     const routeCreateButton = document.getElementById("route-create");
+    const routeCancelButton = document.getElementById("route-cancel");
     const routeHistoryOpenButton = document.getElementById("route-history-open");
     const routeSwapButton = document.getElementById("route-swap");
     const routeResetButton = document.getElementById("route-reset");
@@ -49,12 +50,16 @@
     let geocoderService = null;
     let pendingCenter = null;
     let moveRequestId = 0;
+    let mapViewSnapshot = null;
+    let pendingView = null;
     let searchRequestId = 0;
     let routeOrigin = null;
     let routeDestination = null;
     const routeWaypoints = [];
     let nextWaypointId = 1;
     let routeBusy = false;
+    let routeGeneration = 0;
+    let routeWatchdog = null;
     let routeSearchTimer = null;
     let nextLocalSearchRequestId = 1;
     const localSearchRequests = new Map();
@@ -70,6 +75,7 @@
     let qgisBridgeRetryTimer = null;
     let mapSyncTimer = null;
     let mapPointerActive = false;
+    let mapDragActive = false;
     let roadviewSyncTimer = null;
     let roadviewStateTimer = null;
     let stableRelayoutTimers = [];

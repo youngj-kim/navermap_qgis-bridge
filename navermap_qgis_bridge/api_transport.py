@@ -16,10 +16,16 @@ class ApiTransport:
         self.schedule_once(7000, lambda: timed_out(reply))
         return reply
 
-    def start_route(self, request, finished):
+    def start_route(self, request, finished, timed_out=None):
         reply = self.manager.get(request)
         self.route_reply = reply
         reply.finished.connect(lambda: finished(reply))
+        if timed_out is not None:
+            def expire():
+                if self.route_reply is reply:
+                    self.cancel_route()
+                    timed_out()
+            self.schedule_once(30000, expire)
         return reply
 
     def cancel_route(self):

@@ -17,6 +17,29 @@ class ArchitectureTests(unittest.TestCase):
             with self.subTest(path=path.name):
                 ast.parse(path.read_text(encoding="utf-8-sig"))
 
+    def test_localhost_defaults_and_environment_override(self):
+        settings = ast.parse((ROOT / "settings.py").read_text(encoding="utf-8-sig"))
+        assignments = {node.targets[0].id: ast.literal_eval(node.value)
+                       for node in settings.body if isinstance(node, ast.Assign)
+                       and isinstance(node.targets[0], ast.Name)
+                       and isinstance(node.value, ast.Constant)}
+        self.assertEqual(assignments["DEFAULT_NAVER_MAP_BASE_URL"],
+                         "http://localhost:8083/navermap_qgis_bridge/")
+        function = next(node for node in settings.body
+                        if isinstance(node, ast.FunctionDef) and node.name == "naver_map_base_url")
+        namespace = {**assignments, "os": os}
+        exec(compile(ast.Module(body=[function], type_ignores=[]), "settings.py", "exec"), namespace)
+        from unittest.mock import patch
+        for value, expected in [("", assignments["DEFAULT_NAVER_MAP_BASE_URL"]),
+                                (" http://localhost:9000/custom ", "http://localhost:9000/custom/")]:
+            with patch.dict(os.environ, {"NAVER_MAP_BASE_URL": value}):
+                self.assertEqual(namespace["naver_map_base_url"](), expected)
+        server = ast.parse((ROOT / "external_bridge.py").read_text(encoding="utf-8-sig"))
+        cls = next(node for node in server.body if isinstance(node, ast.ClassDef) and node.name == "NaverExternalBridgeServer")
+        constructor = next(node for node in cls.body
+                           if isinstance(node, ast.FunctionDef) and node.name == "__init__")
+        self.assertEqual(ast.literal_eval(constructor.args.defaults[-1]), 8083)
+
     def test_host_global_dependencies_declared(self):
         for filename in [path.name for path in ROOT.glob("*.py")]:
             source = (ROOT / filename).read_text(encoding="utf-8-sig")

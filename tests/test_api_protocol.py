@@ -76,6 +76,7 @@ class QtRequestBoundaryTests(unittest.TestCase):
         request = Mock()
         self.url, self.query, self.request = url, query, request
         self.namespace = {
+            "validated_credential": __import__("navermap_qgis_bridge.credential_validation", fromlist=["validated_credential"]).validated_credential,
             "QUrl": Mock(return_value=url), "QUrlQuery": Mock(return_value=query),
             "QNetworkRequest": Mock(return_value=request),
             "LOCAL_SEARCH_ENDPOINT": api.LOCAL_SEARCH_ENDPOINT,
@@ -122,14 +123,14 @@ class QtRequestBoundaryTests(unittest.TestCase):
 class PluginResponseIntegrationTests(unittest.TestCase):
     def setUp(self):
         methods = [find_method(name) for name in
-                   ("_process_local_search_reply", "_handle_route_reply")]
+                   ("_process_local_search_reply", "_handle_route_reply", "_process_route_reply")]
         self.reader = Mock()
         self.namespace = {"read_reply": self.reader, "decode_payload": api.decode_payload,
                           "local_search_error": api.local_search_error,
                           "route_error": api.route_error, "route_option": api.route_option,
                           "local_search_items": api.local_search_items,
                           "QNetworkReply": SimpleNamespace(NetworkError=SimpleNamespace(NoError=0)),
-                          "QgsMessageLog": Mock(), "LOG_TAG": "test", "MSG_WARNING": 1}
+                          "QgsMessageLog": Mock(), "LOG_TAG": "test", "MSG_WARNING": 1, "MSG_CRITICAL": 2}
         exec(compile(ast.Module(body=methods, type_ignores=[]), "plugin.py", "exec"), self.namespace)
 
     def test_poi_response_delivery_and_stale_reply(self):
@@ -154,9 +155,13 @@ class PluginResponseIntegrationTests(unittest.TestCase):
     def test_route_error_and_malformed_response(self):
         for status, raw, expected in [(403, b'{"msg":"denied"}', "경로 탐색 실패: denied"),
                                       (200, b'[]', "경로 탐색 결과가 없습니다."),
-                                      (200, b'{"code":1,"message":"none"}', "none")]:
+                                      (200, b'{"code":1,"message":"none"}', "none"),
+                                      (200, b'{"code":"invalid"}', "경로 응답 처리 또는 이력 저장에 실패했습니다."),
+                                      (200, b'{"route":[]}', "경로 탐색 결과가 없습니다."),
+                                      (200, b'{"route":[1]}', "경로 응답 처리 또는 이력 저장에 실패했습니다.")]:
             plugin, reply = Mock(), Mock()
             plugin.route_reply = reply
+            plugin._process_route_reply.side_effect = lambda *args: self.namespace["_process_route_reply"](plugin, *args)
             self.reader.return_value = (status, raw, 0, "")
             self.namespace["_handle_route_reply"](
                 plugin, reply, "RECOMMEND", [], [], {}, (127, 37), (128, 38), "출발", "도착")

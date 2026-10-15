@@ -3,7 +3,7 @@
   "private": true,
   "license": "GPL-2.0-or-later",
   "scripts": {
-    "test": "node test_photo_date.cjs && node test_coordinates.cjs && node test_external_transport.cjs && node test_viewer_layout.cjs"
+    "test": "node test_photo_date.cjs && node test_coordinates.cjs && node test_search_lifetime.cjs && node test_external_transport.cjs && node test_view_scale.cjs && node test_workflows.cjs && node test_viewer_layout.cjs"
   },
   "devDependencies": {
     "playwright": "1.62.1"

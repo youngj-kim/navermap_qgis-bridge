@@ -24,6 +24,7 @@ from .compat import (
     save_style_to_database,
 )
 from .data_transforms import safe_number
+from .history_schema import history_shapefile_fields
 from .gpx_export import (
     GUIDE_FIELDS,
     ROUTE_FIELDS,
@@ -34,6 +35,40 @@ from .constants import LOG_TAG, ROUTE_HISTORY_LAYER_NAME, GUIDANCE_HISTORY_LAYER
 
 
 class HistoryExportMixin:
+    def _repair_saved_guidance_categories(self, source_layer, output_path, layer_name):
+        if "guide_type" not in source_layer.fields().names():
+            return
+        from .data_transforms import guidance_category
+        target = QgsVectorLayer(f"{output_path}|layername={layer_name}", "Guidance repair", "ogr")
+        if not target.isValid():
+            raise RuntimeError("저장된 안내 이력을 열지 못했습니다.")
+        identifiers = {str(feature["history_id"]) for feature in source_layer.getFeatures()}
+        changes = {}
+        for feature in target.getFeatures():
+            if str(feature["history_id"]) in identifiers:
+                category = guidance_category(int(feature["guide_type"]), str(feature["guidance"] or ""))
+                if str(feature["category"]) != category:
+                    changes[feature.id()] = {target.fields().indexOf("category"): category}
+        if changes and not target.dataProvider().changeAttributeValues(changes):
+            raise RuntimeError("저장된 안내 분류 보정에 실패했습니다.")
+
+    def _validate_shapefile_pair(self, routes, guidance):
+        self._shapefile_compatible_layer(routes, "LineString", self._route_shapefile_fields())
+        self._shapefile_compatible_layer(guidance, "Point", self._guidance_shapefile_fields())
+
+    def _normalized_export_layer(self, layer):
+        if layer is not None and "guide_type" in layer.fields().names():
+            from .history_operations import normalize_guidance_feature
+            copy = self._single_history_layer(layer, list(layer.getFeatures()), "Point", layer.name())
+            changes = {}
+            for feature in copy.getFeatures():
+                normalize_guidance_feature(feature)
+                changes[feature.id()] = {copy.fields().indexOf("category"): feature["category"]}
+            if changes and not copy.dataProvider().changeAttributeValues(changes):
+                raise RuntimeError("안내 분류 정규화 실패")
+            return copy
+        return layer
+
     def _save_route_history_geopackage(self, _checked=False):
         if (
             self.route_history_layer is None
@@ -53,13 +88,14 @@ class HistoryExportMixin:
             if project_home
             else default_name
         )
+        epoch = self.project_epoch
         filename, _selected_filter = QFileDialog.getSaveFileName(
             self.iface.mainWindow(),
             "경로 이력 GeoPackage 저장",
             default_path,
             "GeoPackage (*.gpkg)",
         )
-        if not filename:
+        if not filename or self.project_transitioning or epoch != self.project_epoch:
             return
 
         output_path = Path(filename)
@@ -121,13 +157,14 @@ class HistoryExportMixin:
             if project_home
             else default_name
         )
+        epoch = self.project_epoch
         filename, _selected_filter = QFileDialog.getSaveFileName(
             self.iface.mainWindow(),
             "경로·안내 이력 GeoJSON 내보내기",
             default_path,
             "GeoJSON (*.geojson)",
         )
-        if not filename:
+        if not filename or self.project_transitioning or epoch != self.project_epoch:
             return
 
         route_path, guidance_path = self._geojson_output_paths(filename)
@@ -200,13 +237,14 @@ class HistoryExportMixin:
             if project_home
             else default_name
         )
+        epoch = self.project_epoch
         filename, _selected_filter = QFileDialog.getSaveFileName(
             self.iface.mainWindow(),
             "경로·안내 이력 Shapefile 내보내기",
             default_path,
             "Shapefile (*.shp)",
         )
-        if not filename:
+        if not filename or self.project_transitioning or epoch != self.project_epoch:
             return
 
         route_path, guidance_path = self._paired_output_paths(
@@ -230,6 +268,7 @@ class HistoryExportMixin:
                 return
 
         try:
+            self._validate_shapefile_pair(self.route_history_layer, self.guidance_history_layer)
             route_count = self._write_shapefile_history_layer(
                 self.route_history_layer,
                 route_path,
@@ -282,13 +321,14 @@ class HistoryExportMixin:
             if project_home
             else default_name
         )
+        epoch = self.project_epoch
         filename, _selected_filter = QFileDialog.getSaveFileName(
             self.iface.mainWindow(),
             "경로·안내 이력 GPX 내보내기",
             default_path,
             "GPX (*.gpx)",
         )
-        if not filename:
+        if not filename or self.project_transitioning or epoch != self.project_epoch:
             return
 
         output_path = Path(filename)
@@ -361,6 +401,7 @@ class HistoryExportMixin:
         output_path,
         layer_name,
     ):
+        source_layer = self._normalized_export_layer(source_layer)
         options = QgsVectorFileWriter.SaveVectorOptions()
         options.driverName = "GeoJSON"
         options.fileEncoding = "UTF-8"
@@ -407,6 +448,7 @@ class HistoryExportMixin:
         layer_name,
         field_specs,
     ):
+        source_layer = self._normalized_export_layer(source_layer)
         shapefile_layer = self._shapefile_compatible_layer(
             source_layer,
             geometry_name,
@@ -447,6 +489,7 @@ class HistoryExportMixin:
         return shapefile_layer.featureCount()
 
     def _write_gpx_history(self, route_layer, guidance_layer, output_path):
+        guidance_layer = self._normalized_export_layer(guidance_layer)
         route_features = list(route_layer.getFeatures())
         guidance_by_history = self._guidance_features_by_history(guidance_layer)
 
@@ -642,14 +685,15 @@ class HistoryExportMixin:
                 if value is not None and spec["type"] == "string":
                     value = str(value)
                     max_length = spec["length"]
-                    if len(value) > max_length:
-                        value = value[:max_length]
+                    if len(value.encode("utf-8")) > max_length:
+                        raise RuntimeError(f"SHP 필드 {source_name}의 UTF-8 폭이 {max_length}바이트를 초과합니다. GeoPackage 또는 GeoJSON으로 저장하세요.")
                 attributes.append(value)
             feature.setAttributes(attributes)
             features.append(feature)
 
         if features:
-            provider.addFeatures(features)
+            if not provider.addFeatures(features)[0]:
+                raise RuntimeError("내보내기 피처 복사 실패")
             layer.updateExtents()
         return layer
 
@@ -670,50 +714,11 @@ class HistoryExportMixin:
 
     @staticmethod
     def _route_shapefile_fields():
-        return [
-            {"name": "schema_v", "source": "schema_ver", "type": "integer"},
-            {"name": "hist_id", "source": "history_id", "type": "string", "length": 36},
-            {"name": "route_id", "source": "route_id", "type": "string", "length": 64},
-            {"name": "searched", "source": "searched_at", "type": "string", "length": 32},
-            {"name": "org_lon", "source": "origin_lon", "type": "double"},
-            {"name": "org_lat", "source": "origin_lat", "type": "double"},
-            {"name": "org_name", "source": "origin_name", "type": "string", "length": 254},
-            {"name": "dst_lon", "source": "destination_lon", "type": "double"},
-            {"name": "dst_lat", "source": "destination_lat", "type": "double"},
-            {"name": "dst_name", "source": "destination_name", "type": "string", "length": 254},
-            {"name": "waypts", "source": "waypoints_json", "type": "string", "length": 254},
-            {"name": "dist_m", "source": "distance_m", "type": "integer"},
-            {"name": "dur_s", "source": "duration_s", "type": "integer"},
-            {"name": "guide_cnt", "source": "guidance_count", "type": "integer"},
-            {"name": "summary", "source": "result_summary", "type": "string", "length": 254},
-            {"name": "priority", "source": "priority", "type": "string", "length": 16},
-            {"name": "avoid", "source": "avoid", "type": "string", "length": 128},
-            {"name": "car_type", "source": "car_type", "type": "integer"},
-            {"name": "car_fuel", "source": "car_fuel", "type": "string", "length": 16},
-            {"name": "car_hipass", "source": "car_hipass", "type": "integer"},
-        ]
+        return history_shapefile_fields("route")
 
     @staticmethod
     def _guidance_shapefile_fields():
-        return [
-            {"name": "schema_v", "source": "schema_ver", "type": "integer"},
-            {"name": "hist_id", "source": "history_id", "type": "string", "length": 36},
-            {"name": "route_id", "source": "route_id", "type": "string", "length": 64},
-            {"name": "searched", "source": "searched_at", "type": "string", "length": 32},
-            {"name": "seq", "source": "sequence", "type": "integer"},
-            {"name": "sect_no", "source": "section_no", "type": "integer"},
-            {"name": "g_type", "source": "guide_type", "type": "integer"},
-            {"name": "category", "source": "category", "type": "string", "length": 16},
-            {"name": "guidance", "source": "guidance", "type": "string", "length": 254},
-            {"name": "name", "source": "name", "type": "string", "length": 128},
-            {"name": "dist_m", "source": "distance_m", "type": "integer"},
-            {"name": "dur_s", "source": "duration_s", "type": "integer"},
-            {"name": "cum_dist", "source": "cum_distance_m", "type": "integer"},
-            {"name": "cum_dur", "source": "cum_duration_s", "type": "integer"},
-            {"name": "road_idx", "source": "road_index", "type": "integer"},
-            {"name": "lon", "source": "longitude", "type": "double"},
-            {"name": "lat", "source": "latitude", "type": "double"},
-        ]
+        return history_shapefile_fields("guidance")
 
     @staticmethod
     def _save_sidecar_style(
@@ -743,6 +748,7 @@ class HistoryExportMixin:
         layer_name,
         geometry_name,
     ):
+        source_layer = self._normalized_export_layer(source_layer)
         (
             layer_exists,
             existing_ids,
@@ -757,6 +763,7 @@ class HistoryExportMixin:
         )
         pending_count = pending_layer.featureCount()
         if pending_count == 0 and layer_exists and not missing_fields:
+            self._repair_saved_guidance_categories(source_layer, output_path, layer_name)
             self._save_history_layer_style(
                 output_path,
                 layer_name,
@@ -801,6 +808,7 @@ class HistoryExportMixin:
             detail = error_message or f"오류 코드 {error_value}"
             raise RuntimeError(f"{layer_name} 레이어 저장 실패: {detail}")
 
+        self._repair_saved_guidance_categories(source_layer, output_path, layer_name)
         self._save_history_layer_style(
             output_path,
             layer_name,
@@ -881,6 +889,7 @@ class HistoryExportMixin:
             features.append(feature)
 
         if features:
-            provider.addFeatures(features)
+            if not provider.addFeatures(features)[0]:
+                raise RuntimeError("내보내기 피처 복사 실패")
             subset.updateExtents()
         return subset

@@ -38,14 +38,14 @@
       return {
         car_type: Number(routeCarType.value),
         car_fuel: routeCarFuel.value,
-        car_hipass: routeCarHipass.checked
+        car_hipass: false
       };
     }
 
     function updateRouteVehicleSummary() {
       const typeLabel = routeCarType.options[routeCarType.selectedIndex].text;
       const fuelLabel = routeCarFuel.options[routeCarFuel.selectedIndex].text;
-      const hipassLabel = routeCarHipass.checked ? ", 하이패스" : "";
+      const hipassLabel = routeCarHipass.checked ? ", 과거 하이패스 설정 (계산 미반영)" : "";
       routeVehicleToggle.title = `차량: ${typeLabel}, ${fuelLabel}${hipassLabel}`;
     }
 
@@ -65,11 +65,16 @@
       return icons[category] || icons.other;
     }
 
-    function routePriorityLabel(priority) {
+    function routePriorityLabel(priority, avoid = []) {
+      const choices = Array.isArray(avoid) ? avoid : String(avoid).split("|").filter(Boolean);
+      if (choices.length) {
+        const label = choices.includes("toll") ? "무료 우선" : "자동차전용도로 회피";
+        return label + (choices.length > 1 ? " (기존 복수 설정)" : "");
+      }
       const labels = {
-        RECOMMEND: "추천",
-        TIME: "최단 시간",
-        DISTANCE: "최단 거리"
+        RECOMMEND: "실시간 최적",
+        TIME: "실시간 빠른길",
+        DISTANCE: "실시간 편한길"
       };
       return labels[priority] || priority || "";
     }
@@ -166,8 +171,7 @@
         const options = document.createElement("span");
         options.className = "history-meta";
         const optionParts = [
-          routePriorityLabel(history.priority),
-          history.avoid ? `회피 ${history.avoid.split("|").filter(Boolean).length}` : "",
+          routePriorityLabel(history.priority, history.avoid),
           formatHistoryTime(history.searched_at)
         ].filter(Boolean);
         options.textContent = optionParts.join(" · ");
@@ -305,9 +309,7 @@
       const summaryParts = [
         formatGuidanceDuration(Number(summary.duration_s)),
         formatGuidanceDistance(Number(summary.distance_m)),
-        Array.isArray(summary.avoid) && summary.avoid.length
-          ? `회피 ${summary.avoid.length}`
-          : "",
+        routePriorityLabel(summary.priority, summary.avoid),
         vehicleTypeLabels[vehicle.car_type] || "",
         `안내 ${guides.length}개`
       ].filter(Boolean);

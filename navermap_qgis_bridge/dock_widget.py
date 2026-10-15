@@ -1,4 +1,4 @@
-﻿import json
+import json
 
 import math
 
@@ -68,11 +68,12 @@ def web_runtime_diagnostic():
         return ""
 
     lines = [
-        "QGIS 3에서는 내장 지도 창 대신 외부 브라우저 연동 모드를 사용합니다.",
+        "Qt WebEngine 또는 WebChannel을 사용할 수 없어 외부 브라우저 연동 모드를 사용합니다.",
         "아래의 외부 연동 창 열기 버튼을 누르면 Naver Map/거리뷰가 기본 브라우저에서 열리고 QGIS와 위치가 동기화됩니다.",
         "QGIS 캔버스를 이동하면 외부 Naver 지도와 거리뷰가 따라 이동하며, 외부 Naver 지도나 거리뷰에서 이동한 위치도 QGIS에 반영됩니다.",
     ]
 
+    lines.extend(f"{item['component']}: {item['primary_error']}; {item['fallback_error']}" for item in WEB_RUNTIME_IMPORT_ERRORS)
     return "\n".join(lines)
 
 
@@ -80,6 +81,7 @@ def web_runtime_diagnostic():
 
 class NaverMapDockWidget(QDockWidget):
     centerRequested = pyqtSignal(float, float)
+    zoomRequested = pyqtSignal(float, float, float)
     roadviewStateChanged = pyqtSignal(float, float, float, float, float, str)
     routeRequested = pyqtSignal(
         float, float, float, float, str, str, str, str, str, str
@@ -95,6 +97,11 @@ class NaverMapDockWidget(QDockWidget):
     routeHistoryRefreshRequested = pyqtSignal()
     localSearchRequested = pyqtSignal(str, str)
     externalViewerRequested = pyqtSignal()
+    routeCancelRequested = pyqtSignal()
+
+    def reset_project(self, epoch):
+        if self.web_bridge is not None:
+            self.web_bridge.projectReset.emit(epoch)
 
     def __init__(self, parent=None):
         super().__init__("Naver Map / Street View", parent)
@@ -123,11 +130,26 @@ class NaverMapDockWidget(QDockWidget):
             self._load_viewer()
 
         self.setWidget(container)
+        self._initial_float_sized = False
+        self.topLevelChanged.connect(self._dock_mode_changed)
         escape_key = getattr(Qt, "Key_Escape", None)
         if escape_key is None:
             escape_key = Qt.Key.Key_Escape
         self._escape_shortcut = QShortcut(QKeySequence(escape_key), self)
         self._escape_shortcut.activated.connect(self.exit_full_screen)
+
+    def _dock_mode_changed(self, floating):
+        if floating and not self._initial_float_sized:
+            self._initial_float_sized = True
+            screen = self.screen()
+            if screen is not None:
+                available = screen.availableGeometry()
+                self.resize(min(1100, available.width()), min(850, available.height()))
+                position = self.pos()
+                self.move(max(available.left(), min(position.x(), available.right() - self.width() + 1)),
+                          max(available.top(), min(position.y(), available.bottom() - self.height() + 1)))
+        if self.web_view is not None:
+            self.web_view.page().runJavaScript("if (typeof scheduleStableRelayout === 'function') scheduleStableRelayout();")
 
     def set_center(self, lon, lat):
         if self.web_view is None:
@@ -139,6 +161,13 @@ class NaverMapDockWidget(QDockWidget):
             lat=json.dumps(float(lat)),
         )
         self.web_view.page().runJavaScript(script)
+
+    def set_view(self, lon, lat, meters_per_pixel, preserve_roadview=False):
+        if self.web_view is None:
+            self._set_fallback_center(lon, lat)
+            return
+        payload = json.dumps([lon, lat, meters_per_pixel, bool(preserve_roadview)])
+        self.web_view.page().runJavaScript(f"window.syncNaverView(...{payload});")
 
     def set_reverse_sync_status(self, message):
         if self.web_bridge is not None:
@@ -226,10 +255,12 @@ class NaverMapDockWidget(QDockWidget):
     def _configure_web_channel(self):
         self.web_bridge = NaverWebBridge(self)
         self.web_bridge.centerRequested.connect(self.centerRequested.emit)
+        self.web_bridge.zoomRequested.connect(self.zoomRequested.emit)
         self.web_bridge.roadviewStateChanged.connect(
             self.roadviewStateChanged.emit
         )
         self.web_bridge.routeRequested.connect(self.routeRequested.emit)
+        self.web_bridge.routeCancelRequested.connect(self.routeCancelRequested.emit)
         self.web_bridge.routePointChanged.connect(self.routePointChanged.emit)
         self.web_bridge.routePointCleared.connect(self.routePointCleared.emit)
         self.web_bridge.routePointsCleared.connect(self.routePointsCleared.emit)

@@ -9,6 +9,7 @@
     "js/route_inputs.js",
     "js/sync.js",
     "js/search.js",
+    "js/viewer_options.js",
     "js/sdk_events.js",
     "js/navigation.js"
   ]

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 """Plugin entry point, lifecycle, settings and viewer wiring."""
 
-from qgis.core import QgsMessageLog
+from qgis.core import QgsMessageLog, QgsProject
 from qgis.PyQt.QtCore import QTimer, Qt, QUrl
 from qgis.PyQt.QtGui import QDesktopServices, QIcon
 from qgis.PyQt.QtNetwork import QNetworkAccessManager
@@ -50,6 +50,8 @@ class NaverMapQgisBridgePlugin(
 ):
     def __init__(self, iface):
         self.iface = iface
+        self.project_epoch = 0
+        self.project_transitioning = False
         self.action = None
         self.settings_action = None
         self.rest_settings_action = None
@@ -75,6 +77,7 @@ class NaverMapQgisBridgePlugin(
         self.network_manager = QNetworkAccessManager()
         self.api_transport = ApiTransport(self.network_manager, QTimer.singleShot)
         self.canvas_sync_connected = False
+        self.last_canvas_view = None
         self.canvas_sync_timer = QTimer()
         self.canvas_sync_timer.setSingleShot(True)
         self.canvas_sync_timer.setInterval(350)
@@ -105,6 +108,9 @@ class NaverMapQgisBridgePlugin(
         return self.api_transport.search_replies
 
     def initGui(self):
+        project = QgsProject.instance()
+        project.aboutToBeCleared.connect(self._begin_project_transition)
+        project.cleared.connect(self._finish_project_transition)
         self.action = QAction(
             QIcon(str(PLUGIN_DIR / "icon.png")),
             "Naver Map / Street View",
@@ -213,6 +219,11 @@ class NaverMapQgisBridgePlugin(
         self.iface.addPluginToMenu(MENU_NAME, self.export_gpx_action)
 
     def unload(self):
+        project = QgsProject.instance()
+        project.aboutToBeCleared.disconnect(self._begin_project_transition)
+        project.cleared.disconnect(self._finish_project_transition)
+        self.project_epoch += 1
+        self.project_transitioning = True
         self._deactivate_canvas_sync()
 
         if self.action is not None:
@@ -288,6 +299,32 @@ class NaverMapQgisBridgePlugin(
         else:
             self._hide_dock()
 
+    def _begin_project_transition(self):
+        self.project_epoch += 1
+        self.project_transitioning = True
+        self.api_transport.close()
+        self.canvas_sync_timer.stop()
+        self.reverse_sync_guard_timer.stop()
+        if self.external_bridge_server is not None:
+            self.external_bridge_server.reset_project(self.project_epoch, accepting=False)
+
+    def _finish_project_transition(self):
+        self.last_canvas_view = None
+        # Project-owned layers have been deleted; session history layers are unregistered.
+        self.roadview_layer = self.route_layer = self.route_guidance_layer = None
+        self.route_points_layer = None
+        self.roadview_feature_id = None
+        self.route_guidance_feature_ids = {}
+        self.route_point_feature_ids = {}
+        self.active_route_history_id = None
+        if self.dock is not None:
+            self.dock.reset_project(self.project_epoch)
+        if self.external_bridge_server is not None:
+            self.external_bridge_server.reset_project(self.project_epoch, accepting=True)
+        self.project_transitioning = False
+        self._sync_route_history_panel()
+        self._schedule_canvas_sync()
+
     def _show_dock(self):
         if not self._ensure_api_key():
             if self.action is not None:
@@ -347,7 +384,11 @@ class NaverMapQgisBridgePlugin(
             )
             return False
 
-        save_javascript_key(value)
+        try:
+            save_javascript_key(value)
+        except ValueError as exc:
+            QMessageBox.warning(self.iface.mainWindow(), "Naver Map QGIS Bridge", str(exc))
+            return False
         return True
 
     def _configure_rest_api_key(self, _checked=False):
@@ -386,7 +427,11 @@ class NaverMapQgisBridgePlugin(
             )
             return False
 
-        save_rest_api_key(value)
+        try:
+            save_rest_api_key(value)
+        except ValueError as exc:
+            QMessageBox.warning(self.iface.mainWindow(), "Naver Map QGIS Bridge", str(exc))
+            return False
         return True
 
     def _configure_api_hub_client_id(self, _checked=False):
@@ -425,7 +470,11 @@ class NaverMapQgisBridgePlugin(
             )
             return False
 
-        save_api_hub_client_id(value)
+        try:
+            save_api_hub_client_id(value)
+        except ValueError as exc:
+            QMessageBox.warning(self.iface.mainWindow(), "Naver Map QGIS Bridge", str(exc))
+            return False
         return True
 
     def _configure_api_hub_client_secret(self, _checked=False):
@@ -466,7 +515,11 @@ class NaverMapQgisBridgePlugin(
             )
             return False
 
-        save_api_hub_client_secret(value)
+        try:
+            save_api_hub_client_secret(value)
+        except ValueError as exc:
+            QMessageBox.warning(self.iface.mainWindow(), "Naver Map QGIS Bridge", str(exc))
+            return False
         return True
 
     def _hide_dock(self):
@@ -480,8 +533,10 @@ class NaverMapQgisBridgePlugin(
 
         self.dock = NaverMapDockWidget(self.iface.mainWindow())
         self.dock.centerRequested.connect(self._handle_viewer_moved)
+        self.dock.zoomRequested.connect(self._handle_viewer_zoomed)
         self.dock.roadviewStateChanged.connect(self._update_roadview_layer)
         self.dock.routeRequested.connect(self._request_route)
+        self.dock.routeCancelRequested.connect(self._cancel_route)
         self.dock.routePointChanged.connect(self._set_route_point)
         self.dock.routePointCleared.connect(self._clear_route_point)
         self.dock.routePointsCleared.connect(self._clear_route_points)
@@ -511,14 +566,24 @@ class NaverMapQgisBridgePlugin(
             self.external_bridge_server = NaverExternalBridgeServer()
             try:
                 self.external_bridge_server.start()
+                self.external_bridge_server.reset_project(self.project_epoch)
             except OSError as exc:
                 QgsMessageLog.logMessage(str(exc), LOG_TAG, MSG_WARNING)
-                self.iface.messageBar().pushWarning(
-                    "Naver Map QGIS Bridge",
-                    "외부 브라우저 연동 서버를 시작하지 못했습니다. localhost:8082 포트 사용 여부를 확인하세요.",
+                # Keep each QGIS instance on its own loopback socket.
+                self.external_bridge_server = NaverExternalBridgeServer(port=0)
+                try:
+                    self.external_bridge_server.start()
+                    self.external_bridge_server.reset_project(self.project_epoch)
+                except OSError:
+                    self.iface.messageBar().pushWarning(
+                        "Naver Map QGIS Bridge",
+                        "외부 브라우저 연동 서버를 시작하지 못했습니다. 로컬 포트 접근 권한을 확인하세요.",
+                    )
+                    self.external_bridge_server = None
+                    return None
+                self.iface.messageBar().pushInfo(
+                    "Naver Map QGIS Bridge", "기본 포트를 사용할 수 없어 외부 연동에 별도 포트를 사용합니다."
                 )
-                self.external_bridge_server = None
-                return None
 
         if not self.external_bridge_timer.isActive():
             self.external_bridge_timer.start()
@@ -535,84 +600,102 @@ class NaverMapQgisBridgePlugin(
         if server is None:
             return
 
+        self.last_canvas_view = None
         self._schedule_canvas_sync()
         QDesktopServices.openUrl(QUrl(server.url))
 
     def _process_external_bridge_events(self):
-        if self.external_bridge_server is None:
+        if self.external_bridge_server is None or getattr(self, "_processing_external_events", False):
             return
 
-        for event in self.external_bridge_server.drain_events():
-            payload = event.get("payload", {})
-            event_type = event.get("type")
-            try:
-                if event_type == "move_center":
-                    self._handle_viewer_moved(
-                        float(payload.get("lon")),
-                        float(payload.get("lat")),
-                    )
-                elif event_type == "roadview_state":
-                    self._update_roadview_layer(
-                        float(payload.get("lon")),
-                        float(payload.get("lat")),
-                        float(payload.get("pan")),
-                        float(payload.get("tilt")),
-                        float(payload.get("zoom")),
-                        str(payload.get("pano_id", "")),
-                    )
-                elif event_type == "request_route":
-                    self._request_route(
-                        float(payload.get("origin_lon")),
-                        float(payload.get("origin_lat")),
-                        float(payload.get("destination_lon")),
-                        float(payload.get("destination_lat")),
-                        str(payload.get("priority", "")),
-                        str(payload.get("waypoints_json", "")),
-                        str(payload.get("avoid_json", "")),
-                        str(payload.get("vehicle_json", "")),
-                        str(payload.get("origin_label", "")),
-                        str(payload.get("destination_label", "")),
-                    )
-                elif event_type == "route_point":
-                    self._set_route_point(
-                        str(payload.get("role", "")),
-                        float(payload.get("lon")),
-                        float(payload.get("lat")),
-                    )
-                elif event_type == "clear_route_point":
-                    self._clear_route_point(str(payload.get("role", "")))
-                elif event_type == "clear_route_points":
-                    self._clear_route_points()
-                elif event_type == "request_local_search":
-                    self._request_local_search(
-                        str(payload.get("request_id", "")),
-                        str(payload.get("query", "")),
-                    )
-                elif event_type == "select_route_guidance":
-                    self._focus_route_guidance(
-                        int(payload.get("sequence")),
-                        float(payload.get("lon")),
-                        float(payload.get("lat")),
-                    )
-                elif event_type == "select_route_history":
-                    self._focus_route_history(str(payload.get("history_id", "")))
-                elif event_type == "load_route_history":
-                    self._load_route_history(str(payload.get("history_id", "")))
-                elif event_type == "delete_route_history":
-                    self._delete_route_history(str(payload.get("history_id", "")))
-                elif event_type == "export_route_history":
-                    self._export_single_route_history(
-                        str(payload.get("history_id", ""))
-                    )
-                elif event_type == "refresh_route_history":
-                    self._refresh_route_history_panel()
-            except (TypeError, ValueError) as exc:
-                QgsMessageLog.logMessage(str(exc), LOG_TAG, MSG_WARNING)
-                if event_type == "request_route":
-                    self._set_route_status(
-                        False,
-                        "외부 브라우저의 경로 요청을 처리하지 못했습니다.",
-                    )
+        self._processing_external_events = True
+        try:
+            for _ in range(32):
+                if self.external_bridge_server is None:
+                    break
+                event = self.external_bridge_server.next_event()
+                if event is None:
+                    break
+                if self.project_transitioning or event.get("epoch") != self.project_epoch:
+                    continue
+                payload = event.get("payload", {})
+                event_type = event.get("type")
+                try:
+                    if event_type == "move_center":
+                        self._handle_viewer_moved(
+                            float(payload.get("lon")),
+                            float(payload.get("lat")),
+                        )
+                    elif event_type == "zoom_view":
+                        self._handle_viewer_zoomed(float(payload.get("lon")), float(payload.get("lat")),
+                                                  float(payload.get("meters_per_pixel")))
+                    elif event_type == "roadview_state":
+                        self._update_roadview_layer(
+                            float(payload.get("lon")),
+                            float(payload.get("lat")),
+                            float(payload.get("pan")),
+                            float(payload.get("tilt")),
+                            float(payload.get("zoom")),
+                            str(payload.get("pano_id", "")),
+                        )
+                    elif event_type == "request_route":
+                        self._request_route(
+                            float(payload.get("origin_lon")),
+                            float(payload.get("origin_lat")),
+                            float(payload.get("destination_lon")),
+                            float(payload.get("destination_lat")),
+                            str(payload.get("priority", "")),
+                            str(payload.get("waypoints_json", "")),
+                            str(payload.get("avoid_json", "")),
+                            str(payload.get("vehicle_json", "")),
+                            str(payload.get("origin_label", "")),
+                            str(payload.get("destination_label", "")),
+                        )
+                    elif event_type == "cancel_route":
+                        self._cancel_route()
+                    elif event_type == "route_point":
+                        self._set_route_point(
+                            str(payload.get("role", "")),
+                            float(payload.get("lon")),
+                            float(payload.get("lat")),
+                        )
+                    elif event_type == "clear_route_point":
+                        self._clear_route_point(str(payload.get("role", "")))
+                    elif event_type == "clear_route_points":
+                        self._clear_route_points()
+                    elif event_type == "request_local_search":
+                        self._request_local_search(
+                            str(payload.get("request_id", "")),
+                            str(payload.get("query", "")),
+                        )
+                    elif event_type == "select_route_guidance":
+                        self._focus_route_guidance(
+                            int(payload.get("sequence")),
+                            float(payload.get("lon")),
+                            float(payload.get("lat")),
+                        )
+                    elif event_type == "select_route_history":
+                        self._focus_route_history(str(payload.get("history_id", "")))
+                    elif event_type == "load_route_history":
+                        self._load_route_history(str(payload.get("history_id", "")))
+                    elif event_type == "delete_route_history":
+                        self._delete_route_history(str(payload.get("history_id", "")))
+                    elif event_type == "export_route_history":
+                        self._export_single_route_history(
+                            str(payload.get("history_id", ""))
+                        )
+                    elif event_type == "refresh_route_history":
+                        self._refresh_route_history_panel()
+                except Exception as exc:
+                    QgsMessageLog.logMessage(str(exc), LOG_TAG, MSG_WARNING)
+                    if event_type == "request_route":
+                        self._set_route_status(
+                            False,
+                            "외부 브라우저의 경로 요청을 처리하지 못했습니다.",
+                        )
+
+        finally:
+            self._processing_external_events = False
 
     def _sync_action_state(self, visible):
         if self.action is not None:

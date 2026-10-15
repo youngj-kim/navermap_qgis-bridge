@@ -3,6 +3,7 @@
 
 import json
 import math
+import re
 from xml.etree import ElementTree as ET
 
 from .data_transforms import safe_float, safe_number
@@ -204,7 +205,7 @@ def gpx_text(parent, tag, value):
         parent,
         f"{{http://www.topografix.com/GPX/1/1}}{tag}",
     )
-    element.text = str(value)
+    element.text = xml_text(value)
     return element
 
 def gpx_naver_text(parent, tag, value):
@@ -212,8 +213,12 @@ def gpx_naver_text(parent, tag, value):
         parent,
         f"{{https://yjkim.dev/naver-qgis-bridge}}{tag}",
     )
-    element.text = str(value if value is not None else "")
+    element.text = xml_text(value if value is not None else "")
     return element
+
+
+def xml_text(value):
+    return re.sub(r"[^\x09\x0a\x0d\x20-\ud7ff\ue000-\ufffd\U00010000-\U0010ffff]", "", str(value))
 
 def gpx_route_name(route_feature):
     origin = str(route_feature["origin_name"] or "출발지")

@@ -12,9 +12,8 @@ __VIEWER_CSS__
 <body>
   <main id="viewer" class="layout-map-top">
     <header id="search-panel">
-      <form id="search-form" role="search">
-        <input id="search-query" type="search" aria-label="장소, 주소 또는 좌표 검색" placeholder="장소, 주소 또는 경도,위도 검색" autocomplete="off" disabled>
-        <button id="search-submit" type="submit" disabled>검색</button>
+      <div id="viewer-toolbar">
+      <button id="explorer-toggle" type="button" aria-expanded="true" aria-controls="explorer-body">탐색창 접기 ▴</button>
         <select id="viewer-layout" aria-label="지도와 로드뷰 배치">
           <option value="map-top">지도 위 / 로드뷰 아래</option>
           <option value="roadview-top">로드뷰 위 / 지도 아래</option>
@@ -22,8 +21,22 @@ __VIEWER_CSS__
           <option value="roadview-left">로드뷰 좌 / 지도 우</option>
         </select>
         <button id="fullscreen-toggle" type="button" title="전체화면 전환" aria-label="전체화면 전환">⛶</button>
+      </div>
+      <div id="explorer-body">
+      <form id="search-form" role="search">
+        <input id="search-query" type="search" aria-label="장소, 주소 또는 좌표 검색" placeholder="장소, 주소 또는 경도,위도 검색" autocomplete="off" disabled>
+        <button id="search-submit" type="submit" disabled>검색</button>
         <button id="search-clear" type="button" title="검색 지우기" aria-label="검색 지우기" disabled>×</button>
       </form>
+      <div id="map-options">
+        <label for="map-type">지도</label>
+        <select id="map-type" disabled>
+          <option value="NORMAL">일반지도</option>
+          <option value="SATELLITE">위성영상</option>
+          <option value="HYBRID">위성영상+지명</option>
+        </select>
+        <button id="street-toggle" type="button" aria-pressed="false" disabled>로드뷰 도로 표시</button>
+      </div>
       <div id="bridge-diagnostic" role="status" hidden></div>
       <span id="viewer-build">viewer build bridge-14</span>
       <span id="reverse-sync-diagnostic">역방향 대기</span>
@@ -40,6 +53,7 @@ __VIEWER_CSS__
           <button id="route-add-waypoint" type="button" title="경유지 추가" disabled>+ 경유지</button>
         </div>
         <div id="route-avoid-options" aria-label="경로 회피 옵션" hidden>
+          <span>하나만 선택할 수 있으며, 선택 시 위 경로 유형을 대체합니다.</span>
           <label class="route-avoid-option"><input type="checkbox" value="toll">무료 우선</label>
           <label class="route-avoid-option"><input type="checkbox" value="motorway">자동차전용도로 회피</label>
         </div>
@@ -52,7 +66,6 @@ __VIEWER_CSS__
             <option value="4">대형 화물</option>
             <option value="5">특수 화물</option>
             <option value="6">경차</option>
-            <option value="7">이륜차</option>
           </select>
           <label class="route-vehicle-label" for="route-car-fuel">유종</label>
           <select id="route-car-fuel">
@@ -61,7 +74,7 @@ __VIEWER_CSS__
             <option value="diesel">경유</option>
             <option value="lpg">LPG</option>
           </select>
-          <label class="route-avoid-option"><input id="route-car-hipass" type="checkbox">하이패스</label>
+          <label class="route-avoid-option" title="공개 경로 API에 하이패스 보유 여부를 지정하는 옵션이 없습니다. 하이패스 전용 톨게이트 안내는 응답에 포함될 수 있습니다."><input id="route-car-hipass" type="checkbox" disabled>하이패스 경로 설정 (API 미지원)</label>
         </div>
         <label class="route-label" for="route-origin-input">출발</label>
         <input id="route-origin-input" class="route-input" type="text" placeholder="장소, 주소 또는 경도,위도" autocomplete="off" disabled>
@@ -72,6 +85,7 @@ __VIEWER_CSS__
         <button id="route-destination-current" class="route-current" type="button" title="현재 지도 중심을 도착지로 사용" onclick="setRoutePointFromCurrent('destination')" disabled>현재 위치</button>
         <div id="route-actions">
           <button id="route-create" type="button" disabled>경로 생성</button>
+          <button id="route-cancel" type="button" disabled>취소</button>
           <button id="route-history-open" type="button" title="경로 이력 열기" disabled>이력</button>
           <button id="route-swap" type="button" title="출발지와 도착지 바꾸기" aria-label="출발지와 도착지 바꾸기" disabled>⇅</button>
           <button id="route-reset" type="button" title="경로 입력 초기화" aria-label="경로 입력 초기화" disabled>×</button>
@@ -90,6 +104,7 @@ __VIEWER_CSS__
         <div id="route-history-list" role="listbox" aria-label="경로 이력" hidden></div>
       </section>
       <div id="search-results" role="listbox" aria-label="검색 결과" hidden></div>
+      </div>
     </header>
     <section id="map" aria-label="Naver map"><div id="map-surface"></div></section>
     <div id="view-splitter" role="separator" aria-label="지도와 로드뷰 크기 조절" aria-orientation="horizontal">

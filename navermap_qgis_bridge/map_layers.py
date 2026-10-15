@@ -28,6 +28,8 @@ from .constants import LOG_TAG, ROUTE_CAR_TYPES
 
 class MapLayersMixin:
     def _update_roadview_layer(self, lon, lat, pan, tilt, zoom, pano_id):
+        if self.project_transitioning:
+            return
         values = (lon, lat, pan, tilt, zoom)
         if not all(math.isfinite(value) for value in values):
             return
@@ -402,6 +404,8 @@ class MapLayersMixin:
         self.viewer_messages.publish("route_guidance", payload)
 
     def _set_route_point(self, point_id, lon, lat):
+        if self.project_transitioning:
+            return
         role = self._route_point_role(point_id)
         if role is None:
             return

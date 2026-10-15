@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 """Pure conversions with no QGIS, Qt, network or settings dependencies."""
 
+import html
 import math
 import re
 
@@ -62,7 +63,7 @@ def local_search_coordinate(value):
 
 
 def strip_html(value):
-    return re.sub(r"<[^>]+>", "", value)
+    return html.unescape(re.sub(r"<[^>]+>", "", value))
 
 
 def safe_number(value):
@@ -84,32 +85,33 @@ def safe_float(value):
 
 
 def guidance_category(guide_type, guidance):
-    if guide_type == 100:
-        return "start"
-    if guide_type == 101:
+    # NAVER Directions 5: https://api.ncloud-docs.com/docs/application-maps-directions5
+    # Known codes take precedence over localized instruction text.
+    if guide_type == 88:
         return "destination"
-    if guide_type == 1000:
+    if guide_type == 87:
         return "waypoint"
-    if guide_type == 3 or "유턴" in guidance:
-        return "uturn"
-    if 30 <= guide_type <= 41 or 70 <= guide_type <= 81:
+    if 21 <= guide_type <= 34 or 91 <= guide_type <= 104:
         return "roundabout"
-    if guide_type in {
-        1, 5, 8, 11, 24, 25, 26, 27, 28,
-        43, 46, 48, 76, 77, 78, 79, 80, 82,
-    } or "좌회전" in guidance or "왼쪽" in guidance:
+    if guide_type == 6:
+        return "uturn"
+    if guide_type in {2, 4, 8, 11, 12, 13}:
         return "left"
-    if guide_type in {
-        2, 6, 9, 12, 18, 19, 20, 21, 22,
-        44, 47, 49, 70, 71, 72, 73, 74, 83,
-    } or "우회전" in guidance or "오른쪽" in guidance:
+    if guide_type in {3, 5, 14, 15, 16}:
         return "right"
-    if guide_type in {0, 29} or "직진" in guidance:
+    if guide_type == 1:
         return "straight"
-    if guide_type in {
-        7, 8, 9, 10, 11, 12, 14, 15, 16, 17,
-        42, 43, 44, 45, 46, 47, 48, 49,
-        61, 62, 84, 85, 86, 300, 301,
-    }:
+    if guide_type in {41, 42, 47, 48, 49, *range(50, 61), *range(62, 70), *range(71, 83), 121, 122, 123}:
         return "transition"
+    guidance = str(guidance or "")
+    if "회전 교차로" in guidance or "로터리" in guidance:
+        return "roundabout"
+    if "유턴" in guidance:
+        return "uturn"
+    if "좌회전" in guidance or "왼쪽" in guidance:
+        return "left"
+    if "우회전" in guidance or "오른쪽" in guidance:
+        return "right"
+    if "직진" in guidance:
+        return "straight"
     return "other"

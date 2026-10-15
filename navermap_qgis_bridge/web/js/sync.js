@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-    function syncNaverMapToQgis(force = false) {
+    function syncNaverMapToQgis(force = false, dragFinished = false) {
       if (!force && isBridgeSyncSuppressed()) {
         window.setReverseSyncDiagnostic("JS 보류: QGIS 동기화 중");
         return;
@@ -12,7 +12,6 @@
         position = map.getCenter();
         lat = position.lat();
         lon = position.lng();
-        marker.setPosition(position);
       } catch (error) {
         window.setReverseSyncDiagnostic(`JS 좌표 오류: ${error.message}`);
         return;
@@ -24,13 +23,44 @@
         return;
       }
 
+      const zoom = typeof map.getZoom === "function" ? map.getZoom() : null;
+      const previous = mapViewSnapshot;
+      if (!dragFinished && previous && previous.zoom === zoom && Math.abs(previous.lon - lon) < 1e-9 && Math.abs(previous.lat - lat) < 1e-9) return;
+      if (!dragFinished && previous && previous.zoom !== zoom && typeof qgisBridge.zoomQgisView === "function") {
+        try {
+          qgisBridge.zoomQgisView(lon, lat, naverGroundResolution());
+          mapViewSnapshot = {lon, lat, zoom};
+        } catch (_error) { setStatus("지도 확대 비율을 전달하지 못했습니다."); }
+        return;
+      }
+      marker.setPosition(position);
+
       window.setReverseSyncDiagnostic(
         `JS 호출: ${lat.toFixed(6)}, ${lon.toFixed(6)}`
       );
-      qgisBridge.moveQgisCenter(lon, lat, (result) => {
-        window.setReverseSyncDiagnostic(result || "Python 응답 완료");
-      });
+      try {
+        // Use the same two-argument call as the working panorama -> QGIS path.
+        qgisBridge.moveQgisCenter(lon, lat);
+        mapViewSnapshot = {lon, lat, zoom};
+        if (dragFinished || !mapDragActive) {
+          moveViewer(lon, lat, {suppressBridge:true});
+        }
+      } catch (_error) {
+        window.setReverseSyncDiagnostic("JS 실패: 지도 위치 전달 오류");
+        setStatus("지도 위치를 전달하지 못했습니다. 다시 이동해 주세요.");
+        return;
+      }
       setStatus(`Naver Map -> QGIS EPSG:4326 ${lat.toFixed(6)}, ${lon.toFixed(6)}.`);
+    }
+
+    function naverGroundResolution() {
+      const projection = map.getProjection();
+      const center = projection.fromCoordToOffset(map.getCenter());
+      const first = projection.fromOffsetToCoord(new naver.maps.Point(center.x - 64, center.y));
+      const second = projection.fromOffsetToCoord(new naver.maps.Point(center.x + 64, center.y));
+      const resolution = projection.getDistance(first, second) / 128;
+      if (!Number.isFinite(resolution) || resolution <= 0) throw new Error("Invalid map resolution");
+      return resolution;
     }
 
     function scheduleNaverMapSync() {

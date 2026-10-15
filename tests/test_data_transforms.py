@@ -50,13 +50,17 @@ class DataTransformsTests(unittest.TestCase):
 
     def test_guidance_precedence(self):
         for code, text, expected in [
-            (100, "좌회전", "start"), (101, "우회전", "destination"),
-            (1000, "유턴", "waypoint"), (3, "", "uturn"),
-            (999, "유턴 후 좌회전", "uturn"), (30, "좌회전", "roundabout"),
-            (70, "우회전", "roundabout"), (8, "", "left"),
-            (9, "", "right"), (0, "", "straight"), (7, "", "transition"),
-            (999, "왼쪽", "left"), (999, "오른쪽", "right"),
-            (999, "직진", "straight"), (999, "", "other")
+            (1, "", "straight"), (2, "", "left"), (3, "방면으로 우회전", "right"),
+            (4, "", "left"), (5, "", "right"), (6, "", "uturn"), (8, "", "left"),
+            (11, "", "left"), (12, "", "left"), (13, "", "left"),
+            (14, "", "right"), (15, "", "right"), (16, "", "right"),
+            (87, "", "waypoint"), (88, "", "destination"),
+            (100, "좌회전", "roundabout"), (101, "우회전", "roundabout"),
+            (21, "직진", "roundabout"), (34, "", "roundabout"),
+            (91, "", "roundabout"), (104, "", "roundabout"),
+            (50, "왼쪽", "transition"), (122, "", "transition"),
+            (999, "유턴 후 좌회전", "uturn"), (999, "왼쪽", "left"),
+            (999, "오른쪽", "right"), (999, "직진", "straight"), (999, "", "other")
         ]:
             with self.subTest(code=code, text=text):
                 self.assertEqual(transforms.guidance_category(code, text), expected)
@@ -69,7 +73,7 @@ class DataTransformsTests(unittest.TestCase):
         self.assertEqual(transforms.safe_float("12.5"), 12.5)
         # Preserve existing behavior; finite-value validation belongs to callers.
         self.assertTrue(math.isnan(transforms.safe_float("nan")))
-        self.assertEqual(transforms.strip_html("<b>A</b>&amp;B"), "A&amp;B")
+        self.assertEqual(transforms.strip_html("<b>A</b>&amp;B"), "A&B")
 
     def test_plugin_delegates_to_transforms(self):
         for name in ["normalize_local_search_items", "local_search_coordinate",

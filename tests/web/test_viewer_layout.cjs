@@ -73,11 +73,42 @@ const { chromium } = require('playwright');
         }
       }
     }
+    // All three toolbar controls stay on one row even in narrow floating docks.
+    for (const width of [280,360,540,700,1100]) {
+      await page.setViewportSize({width,height:900});
+      for (const collapsed of [true,false]) {
+        await page.evaluate(value => {
+          document.getElementById('explorer-body').hidden=value;
+          document.getElementById('explorer-toggle').textContent=value?'탐색창 펼치기 ▾':'탐색창 접기 ▴';
+        }, collapsed);
+        const sameRow=await page.evaluate(()=>{
+          const toolbar=document.getElementById('viewer-toolbar').getBoundingClientRect();
+          const controls=['explorer-toggle','viewer-layout','fullscreen-toggle'].map(id=>document.getElementById(id).getBoundingClientRect());
+          return controls.every(r=>Math.abs(r.y-controls[0].y)<1 && r.width>0 && r.x>=toolbar.x-1 && r.right<=toolbar.right+1);
+        });
+        assert.ok(sameRow, `toolbar wrapped or overflowed at ${width}px, collapsed=${collapsed}`);
+      }
+    }
+    await page.setViewportSize({width:1500,height:950});
+    await page.evaluate(()=>{document.getElementById('explorer-body').hidden=false;});
+    await page.click('#explorer-toggle');
+    for (const layout of ['map-top','roadview-top','map-left','roadview-left']) {
+      await page.selectOption('#viewer-layout',layout);
+      await page.waitForTimeout(650);
+      assert.equal(await page.isVisible('#viewer-layout'),true);
+      assert.equal(await page.isVisible('#search-form'),false);
+      const fits=await page.evaluate(()=>['map','roadview'].every(id=>{
+        const pane=document.getElementById(id), surface=document.getElementById(id+'-surface');
+        return pane.clientHeight>0 && Math.abs(pane.clientHeight-surface.clientHeight)<1 && Math.abs(pane.clientWidth-surface.clientWidth)<1;
+      }));
+      assert.ok(fits, 'collapsed explorer layout failed: '+layout);
+    }
+    await page.click('#explorer-toggle');
     // Header growth changes the space left for both panes without resizing the window.
     await page.evaluate(() => { document.getElementById('route-controls').style.paddingBottom='120px'; });
     await page.waitForTimeout(650);
     const filled = await page.evaluate(() => ['map','roadview'].every(id => Math.abs(document.getElementById(id).clientHeight-document.getElementById(`${id}-surface`).clientHeight)<1));
     assert.ok(filled, 'SDK resize missed header growth');
-    console.log(`PASS: ${count} layout/viewport/split cases; toggle hit testing with high-z SDK overlay and clicks; header growth; inline JS syntax`);
+    console.log(`PASS: ${count} layout/viewport/split cases; 10 narrow/expanded toolbar cases; collapsed layout; header growth; inline JS syntax`);
   } finally { await browser.close(); }
 })().catch(e => { console.error(e); process.exitCode=1; });

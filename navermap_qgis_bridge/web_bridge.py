@@ -8,6 +8,11 @@ from qgis.PyQt.QtGui import QDesktopServices
 
 class NaverWebBridge(QObject):
     centerRequested = pyqtSignal(float, float)
+    zoomRequested = pyqtSignal(float, float, float)
+
+    @pyqtSlot(float, float, float)
+    def zoomQgisView(self, lon, lat, meters_per_pixel):
+        self.zoomRequested.emit(lon, lat, meters_per_pixel)
     reverseSyncStatusChanged = pyqtSignal(str)
     roadviewStateChanged = pyqtSignal(float, float, float, float, float, str)
     routeRequested = pyqtSignal(
@@ -29,6 +34,12 @@ class NaverWebBridge(QObject):
     routeHistoryRefreshRequested = pyqtSignal()
     localSearchRequested = pyqtSignal(str, str)
     fullScreenRequested = pyqtSignal()
+    routeCancelRequested = pyqtSignal()
+    projectReset = pyqtSignal(int)
+
+    @pyqtSlot()
+    def cancelRoute(self):
+        self.routeCancelRequested.emit()
 
     @pyqtSlot(float, float, result=str)
     def moveQgisCenter(self, lon, lat):

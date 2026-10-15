@@ -1,4 +1,4 @@
-﻿from qgis.core import Qgis, QgsMapLayer, QgsVectorFileWriter
+from qgis.core import Qgis, QgsMapLayer, QgsVectorFileWriter
 from qgis.PyQt.QtWidgets import QMessageBox
 
 
@@ -71,5 +71,7 @@ def save_style_to_database(layer, name, description, use_as_default):
         error_values = [value for value in result if isinstance(value, str)]
         if bool_values:
             return bool_values[-1], (error_values[0] if error_values else "")
-    return True, ""
+    if isinstance(result, str):
+        return not result, result
+    return False, "스타일 저장 API의 반환값을 확인하지 못했습니다."
 

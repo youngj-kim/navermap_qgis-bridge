@@ -1,4 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+    const viewerOptions = createNaverViewerOptions({
+      getMap: () => map, getMaps: () => naver.maps,
+      relayout: scheduleStableRelayout, onError: setStatus
+    });
+
     function loadNaverScript(appKey) {
       return new Promise((resolve, reject) => {
         if (
@@ -46,8 +51,11 @@
         map,
         position: center
       });
+      viewerOptions.initialize();
 
       naver.maps.Event.addListener(map, "drag", () => {
+        mapDragActive = true;
+        bridgeSyncSuppressedUntil = 0;
         scheduleNaverMapSync();
       });
 
@@ -63,7 +71,9 @@
         window.setReverseSyncDiagnostic("NAVER dragend 감지");
         window.clearTimeout(mapSyncTimer);
         mapSyncTimer = null;
-        syncNaverMapToQgis(true);
+        const wasDragging = mapDragActive;
+        mapDragActive = false;
+        syncNaverMapToQgis(true, wasDragging);
       });
 
       mapElement.addEventListener("pointerdown", () => {
@@ -75,13 +85,16 @@
           return;
         }
         mapPointerActive = false;
+        const wasDragging = mapDragActive;
+        mapDragActive = false;
         window.setReverseSyncDiagnostic("지도 pointerup 감지");
         window.clearTimeout(mapSyncTimer);
         mapSyncTimer = null;
-        window.setTimeout(() => syncNaverMapToQgis(true), 0);
+        window.setTimeout(() => syncNaverMapToQgis(true, wasDragging), 0);
       }, true);
       document.addEventListener("pointercancel", () => {
         mapPointerActive = false;
+        mapDragActive = false;
       }, true);
 
       naver.maps.Event.addListener(map, "idle", () => {
@@ -169,6 +182,11 @@
       if (pendingCenter) {
         moveViewer(pendingCenter.lon, pendingCenter.lat);
         pendingCenter = null;
+      }
+      if (pendingView) {
+        const view = pendingView;
+        pendingView = null;
+        window.syncNaverView(view.lon, view.lat, view.metersPerPixel, view.preserveRoadview);
       }
     }
 
@@ -357,7 +375,13 @@
 
     routeAvoidCheckboxes.forEach((checkbox) => {
       checkbox.addEventListener("change", () => {
+        if (checkbox.checked) {
+          routeAvoidCheckboxes.forEach((other) => {
+            if (other !== checkbox) other.checked = false;
+          });
+        }
         updateRouteAvoidSummary();
+        updateRouteControls();
         const count = selectedRouteAvoidOptions().length;
         setStatus(count ? `경로 회피 옵션 ${count}개 선택` : "경로 회피 옵션 없음");
       });
@@ -437,6 +461,7 @@
       routeVehicleOptions.hidden = true;
       routeVehicleToggle.setAttribute("aria-expanded", "false");
       routeBusy = true;
+      const generation = ++routeGeneration;
       updateRouteControls();
       setStatus("출발지, 경유지, 도착지를 확인하고 있습니다...");
 
@@ -448,12 +473,14 @@
           )),
           routeDestination || resolveRouteLocation(routeDestinationInput.value)
         ]);
+        if (generation !== routeGeneration) return;
         routeOrigin = locations[0];
         routeDestination = locations[locations.length - 1];
         routeWaypoints.forEach((waypoint, index) => {
           waypoint.coordinate = locations[index + 1];
         });
       } catch (error) {
+        if (generation !== routeGeneration) return;
         routeBusy = false;
         setStatus(error.message);
         updateRouteControls();
@@ -476,6 +503,10 @@
           ? `경유지 ${routeWaypoints.length}개를 포함한 경로를 탐색하고 있습니다...`
           : "Naver Directions 경로를 탐색하고 있습니다..."
       );
+      routeWatchdog = window.setTimeout(() => {
+        if (generation !== routeGeneration || !routeBusy) return;
+        cancelRouteSearch("경로 응답을 받지 못했습니다. 연결을 확인한 뒤 다시 조회하세요.");
+      }, 35000);
       qgisBridge.requestRoute(
         routeOrigin.lon,
         routeOrigin.lat,
@@ -489,6 +520,17 @@
         routeDestinationInput.value.trim()
       );
     });
+
+    function cancelRouteSearch(message = "경로 탐색을 취소했습니다.") {
+      routeGeneration += 1;
+      searchRequestId += 1;
+      routeBusy = false;
+      window.clearTimeout(routeWatchdog);
+      if (qgisBridge && typeof qgisBridge.cancelRoute === "function") qgisBridge.cancelRoute();
+      updateRouteControls();
+      setStatus(message);
+    }
+    routeCancelButton.addEventListener("click", () => cancelRouteSearch());
 
     routeResetButton.addEventListener("click", () => {
       clearRouteInputs(true);

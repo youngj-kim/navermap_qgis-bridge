@@ -8,6 +8,21 @@
       color: #1f2428;
     }
 
+    [hidden] { display: none !important; }
+
+    #explorer-toggle, #street-toggle, #map-type {
+      min-height: 28px;
+      border: 1px solid #cbd4ce;
+      border-radius: 4px;
+      background: white;
+      color: #1f2428;
+    }
+    #map-options { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0; }
+    #viewer-toolbar { display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; margin-bottom: 6px; min-width: 0; }
+    #viewer-toolbar #viewer-layout { flex: 1 1 120px; width: auto; min-width: 0; max-width: 100%; }
+    #viewer-toolbar #explorer-toggle { flex: 0 0 auto; height: 34px; white-space: nowrap; }
+    #viewer-toolbar #fullscreen-toggle { flex: 0 0 34px; }
+
     #viewer {
       display: grid;
       --split-primary-size: 1fr;
@@ -169,8 +184,8 @@
 
     #search-form {
       display: grid;
-      grid-template-areas: "query submit layout fullscreen clear";
-      grid-template-columns: minmax(0, 1fr) auto auto 34px 34px;
+      grid-template-areas: "query submit clear";
+      grid-template-columns: minmax(0, 1fr) auto 34px;
       gap: 6px;
     }
 
@@ -875,14 +890,7 @@
       }
 
       #search-form {
-        grid-template-areas:
-          "query submit fullscreen clear"
-          "layout layout layout layout";
-        grid-template-columns: minmax(0, 1fr) 58px 34px 34px;
-      }
-
-      #viewer-layout {
-        width: 100%;
+        grid-template-columns: minmax(0, 1fr) 58px 34px;
       }
 
       #route-options {

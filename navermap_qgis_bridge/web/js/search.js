@@ -21,6 +21,7 @@
     }
 
     function geocodeAddress(query) {
+      const generation = searchRequestId;
       function requestGeocode(options) {
         if (!geocoderService) {
           return Promise.resolve([]);
@@ -89,6 +90,7 @@
           });
           qgisBridge.requestLocalSearch(requestId, query);
         }).catch((error) => {
+          if (generation !== searchRequestId) return [];
           console.warn("Naver API HUB local search failed", error);
           lastLocalSearchError =
             error && error.message ? error.message : "POI 검색에 실패했습니다.";
@@ -105,10 +107,12 @@
       }
 
       return requestPoiSearch().then((poiResults) => {
+        if (generation !== searchRequestId) return [];
         if (poiResults.length) {
           return poiResults;
         }
         return requestGeocode({ ...baseOptions, query }).then((results) => {
+          if (generation !== searchRequestId) return [];
           if (results.length) {
             return results;
           }
@@ -169,8 +173,10 @@
       manageSearchButton = true,
       selectFirst = false
     ) {
+      const requestId = ++searchRequestId;
       const coordinate = parseCoordinateInput(query);
       if (coordinate) {
+        searchSubmit.disabled = false;
         const result = {
           title: "입력 좌표",
           address: formatCoordinate(coordinate),
@@ -188,7 +194,6 @@
         return;
       }
 
-      const requestId = ++searchRequestId;
       const collected = [];
       let failed = false;
       lastLocalSearchError = "";

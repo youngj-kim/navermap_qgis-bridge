@@ -59,6 +59,7 @@
     }
 
     function updateRouteControls() {
+      routeCancelButton.disabled = !routeBusy;
       const hasOrigin = Boolean(routeOriginInput.value.trim());
       const hasDestination = Boolean(routeDestinationInput.value.trim());
       const waypointsReady = routeWaypoints.every((waypoint) => waypoint.input.value.trim());
@@ -66,7 +67,7 @@
       routeHistoryOpenButton.disabled = routeBusy || !qgisBridge;
       routeResetButton.disabled = routeBusy || !(hasOrigin || hasDestination || routeWaypoints.length);
       routeSwapButton.disabled = !map || routeBusy || !(hasOrigin || hasDestination);
-      routePrioritySelect.disabled = !map || routeBusy;
+      routePrioritySelect.disabled = !map || routeBusy || selectedRouteAvoidOptions().length > 0;
       routeAvoidToggle.disabled = !map || routeBusy;
       routeAvoidCheckboxes.forEach((checkbox) => {
         checkbox.disabled = !map || routeBusy;
@@ -74,7 +75,7 @@
       routeVehicleToggle.disabled = !map || routeBusy;
       routeCarType.disabled = !map || routeBusy;
       routeCarFuel.disabled = !map || routeBusy;
-      routeCarHipass.disabled = !map || routeBusy;
+      routeCarHipass.disabled = true;
       routeAddWaypointButton.disabled = !map || routeBusy || routeWaypoints.length >= maxRouteWaypoints;
       routeOriginInput.disabled = !map || routeBusy;
       routeDestinationInput.disabled = !map || routeBusy;
@@ -368,6 +369,9 @@
     }
 
     function clearRouteInputs(resetOptions = true) {
+      routeGeneration += 1;
+      routeBusy = false;
+      window.clearTimeout(routeWatchdog);
       window.clearTimeout(routeSearchTimer);
       searchRequestId += 1;
       searchResults.hidden = true;
@@ -385,7 +389,7 @@
           checkbox.checked = false;
         });
         routeCarType.value = "1";
-        routeCarFuel.value = "GASOLINE";
+        routeCarFuel.value = "gasoline";
         routeCarHipass.checked = false;
       }
 

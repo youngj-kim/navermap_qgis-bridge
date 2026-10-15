@@ -16,6 +16,10 @@ from qgis.core import (
 )
 from qgis.PyQt.QtWidgets import QFileDialog, QInputDialog, QMessageBox
 from .compat import MSGBOX_NO, MSGBOX_YES, MSG_CRITICAL, MSG_WARNING
+from .fare_values import fare_amount
+from .data_transforms import guidance_category
+from .history_operations import checked_add, history_transaction, normalize_guidance_feature, validate_import_pair
+from .history_schema import history_memory_uri, history_import_fields
 from .constants import (
     LOG_TAG,
     MAX_ROUTE_WAYPOINTS,
@@ -45,6 +49,8 @@ class RouteHistoryMixin:
         avoid_options,
         vehicle_options,
         guides,
+        toll_fare=None,
+        taxi_fare=None,
     ):
         route_layer, guidance_layer = self._ensure_route_history_layers()
 
@@ -76,17 +82,10 @@ class RouteHistoryMixin:
                 vehicle_options["car_type"],
                 vehicle_options["car_fuel"],
                 1 if vehicle_options["car_hipass"] else 0,
+                fare_amount(toll_fare),
+                fare_amount(taxi_fare),
             ]
         )
-        if not route_layer.dataProvider().addFeature(route_feature):
-            QgsMessageLog.logMessage(
-                "경로 검색 이력을 메모리 레이어에 추가하지 못했습니다.",
-                LOG_TAG,
-                MSG_WARNING,
-            )
-            return
-        route_layer.updateExtents()
-
         guidance_features = []
         for guide in guides:
             feature = QgsFeature(guidance_layer.fields())
@@ -104,7 +103,7 @@ class RouteHistoryMixin:
                     guide["sequence"],
                     guide["section_no"],
                     guide["guide_type"],
-                    guide["category"],
+                    guidance_category(guide["guide_type"], guide["guidance"]),
                     guide["guidance"],
                     guide["name"],
                     guide["distance_m"],
@@ -118,9 +117,9 @@ class RouteHistoryMixin:
             )
             guidance_features.append(feature)
 
-        if guidance_features:
-            guidance_layer.dataProvider().addFeatures(guidance_features)
-            guidance_layer.updateExtents()
+        with history_transaction(route_layer, guidance_layer):
+            checked_add(route_layer, [route_feature])
+            checked_add(guidance_layer, guidance_features)
 
         if self.save_history_action is not None:
             self.save_history_action.setEnabled(True)
@@ -134,29 +133,7 @@ class RouteHistoryMixin:
 
     def _ensure_route_history_layers(self):
         if self.route_history_layer is None:
-            route_uri = (
-                "LineString?crs=EPSG:4326"
-                "&field=schema_ver:integer"
-                "&field=history_id:string(36)"
-                "&field=route_id:string(64)"
-                "&field=searched_at:string(32)"
-                "&field=origin_lon:double"
-                "&field=origin_lat:double"
-                "&field=origin_name:string(255)"
-                "&field=destination_lon:double"
-                "&field=destination_lat:double"
-                "&field=destination_name:string(255)"
-                "&field=waypoints_json:string(4096)"
-                "&field=distance_m:integer"
-                "&field=duration_s:integer"
-                "&field=guidance_count:integer"
-                "&field=result_summary:string(255)"
-                "&field=priority:string(16)"
-                "&field=avoid:string(128)"
-                "&field=car_type:integer"
-                "&field=car_fuel:string(16)"
-                "&field=car_hipass:integer"
-            )
+            route_uri = history_memory_uri("route")
             self.route_history_layer = QgsVectorLayer(
                 route_uri,
                 "Naver Route History",
@@ -167,26 +144,7 @@ class RouteHistoryMixin:
             )
 
         if self.guidance_history_layer is None:
-            guidance_uri = (
-                "Point?crs=EPSG:4326"
-                "&field=schema_ver:integer"
-                "&field=history_id:string(36)"
-                "&field=route_id:string(64)"
-                "&field=searched_at:string(32)"
-                "&field=sequence:integer"
-                "&field=section_no:integer"
-                "&field=guide_type:integer"
-                "&field=category:string(16)"
-                "&field=guidance:string(255)"
-                "&field=name:string(128)"
-                "&field=distance_m:integer"
-                "&field=duration_s:integer"
-                "&field=cum_distance_m:integer"
-                "&field=cum_duration_s:integer"
-                "&field=road_index:integer"
-                "&field=longitude:double"
-                "&field=latitude:double"
-            )
+            guidance_uri = history_memory_uri("guidance")
             self.guidance_history_layer = QgsVectorLayer(
                 guidance_uri,
                 "Naver Guidance History",
@@ -200,6 +158,7 @@ class RouteHistoryMixin:
 
     def _load_route_history_file(self, _checked=False):
         project_home = QgsProject.instance().homePath()
+        epoch = self.project_epoch
         filename, _selected_filter = QFileDialog.getOpenFileName(
             self.iface.mainWindow(),
             "경로 이력 불러오기",
@@ -211,7 +170,7 @@ class RouteHistoryMixin:
                 "Shapefile (*.shp)"
             ),
         )
-        if not filename:
+        if not filename or self.project_transitioning or epoch != self.project_epoch:
             return
 
         input_path = Path(filename)
@@ -219,18 +178,24 @@ class RouteHistoryMixin:
             route_source, guidance_source = self._open_history_sources(
                 input_path
             )
-            route_count = self._append_imported_history(
-                route_source,
-                self.route_history_layer,
-                "LineString",
-                self._full_history_field_specs("route"),
-            )
-            guidance_count = self._append_imported_history(
-                guidance_source,
-                self.guidance_history_layer,
-                "Point",
-                self._full_history_field_specs("guidance"),
-            )
+            validate_import_pair(route_source, guidance_source, self._history_value)
+            existing_routes = self._memory_history_ids(self.route_history_layer)
+            route_ids = {str(self._history_value(f, set(route_source.fields().names()), "history_id", "hist_id"))
+                         for f in route_source.getFeatures()} - existing_routes
+            with history_transaction(self.route_history_layer, self.guidance_history_layer):
+                route_count = self._append_imported_history(
+                    route_source,
+                    self.route_history_layer,
+                    "LineString",
+                    self._full_history_field_specs("route"),
+                )
+                guidance_count = self._append_imported_history(
+                    guidance_source,
+                    self.guidance_history_layer,
+                    "Point",
+                    self._full_history_field_specs("guidance"),
+                    allowed_ids=route_ids,
+                )
         except RuntimeError as exc:
             QgsMessageLog.logMessage(
                 str(exc),
@@ -257,13 +222,14 @@ class RouteHistoryMixin:
 
     def _load_styled_gpx(self, _checked=False):
         project_home = QgsProject.instance().homePath()
+        epoch = self.project_epoch
         filename, _selected_filter = QFileDialog.getOpenFileName(
             self.iface.mainWindow(),
             "GPX 스타일 적용해서 불러오기",
             project_home or "",
             "GPX (*.gpx)",
         )
-        if not filename:
+        if not filename or self.project_transitioning or epoch != self.project_epoch:
             return
 
         gpx_path = Path(filename)
@@ -388,6 +354,7 @@ class RouteHistoryMixin:
         target_layer,
         geometry_name,
         field_specs,
+        allowed_ids=None,
     ):
         existing_ids = self._memory_history_ids(target_layer)
         pending_layer = QgsVectorLayer(
@@ -408,7 +375,7 @@ class RouteHistoryMixin:
                 "history_id",
                 "hist_id",
             )
-            if not history_id or str(history_id) in existing_ids:
+            if not history_id or str(history_id) in existing_ids or (allowed_ids is not None and str(history_id) not in allowed_ids):
                 continue
 
             feature = QgsFeature(pending_layer.fields())
@@ -424,12 +391,14 @@ class RouteHistoryMixin:
                     for spec in field_specs
                 ]
             )
+            if geometry_name == "Point":
+                normalize_guidance_feature(feature)
             features.append(feature)
 
         if features:
-            provider.addFeatures(features)
+            checked_add(pending_layer, features)
             pending_layer.updateExtents()
-            target_layer.dataProvider().addFeatures(features)
+            checked_add(target_layer, features)
             target_layer.updateExtents()
 
         return len(features)
@@ -454,48 +423,7 @@ class RouteHistoryMixin:
         return None
 
     def _full_history_field_specs(self, layer_type):
-        if layer_type == "route":
-            return [
-                {"source": "schema_ver", "name": "schema_v"},
-                {"source": "history_id", "name": "hist_id"},
-                {"source": "route_id", "name": "route_id"},
-                {"source": "searched_at", "name": "searched"},
-                {"source": "origin_lon", "name": "org_lon"},
-                {"source": "origin_lat", "name": "org_lat"},
-                {"source": "origin_name", "name": "org_name"},
-                {"source": "destination_lon", "name": "dst_lon"},
-                {"source": "destination_lat", "name": "dst_lat"},
-                {"source": "destination_name", "name": "dst_name"},
-                {"source": "waypoints_json", "name": "waypts"},
-                {"source": "distance_m", "name": "dist_m"},
-                {"source": "duration_s", "name": "dur_s"},
-                {"source": "guidance_count", "name": "guide_cnt"},
-                {"source": "result_summary", "name": "summary"},
-                {"source": "priority", "name": "priority"},
-                {"source": "avoid", "name": "avoid"},
-                {"source": "car_type", "name": "car_type"},
-                {"source": "car_fuel", "name": "car_fuel"},
-                {"source": "car_hipass", "name": "car_hipass"},
-            ]
-        return [
-            {"source": "schema_ver", "name": "schema_v"},
-            {"source": "history_id", "name": "hist_id"},
-            {"source": "route_id", "name": "route_id"},
-            {"source": "searched_at", "name": "searched"},
-            {"source": "sequence", "name": "seq"},
-            {"source": "section_no", "name": "sect_no"},
-            {"source": "guide_type", "name": "g_type"},
-            {"source": "category", "name": "category"},
-            {"source": "guidance", "name": "guidance"},
-            {"source": "name", "name": "name"},
-            {"source": "distance_m", "name": "dist_m"},
-            {"source": "duration_s", "name": "dur_s"},
-            {"source": "cum_distance_m", "name": "cum_dist"},
-            {"source": "cum_duration_s", "name": "cum_dur"},
-            {"source": "road_index", "name": "road_idx"},
-            {"source": "longitude", "name": "lon"},
-            {"source": "latitude", "name": "lat"},
-        ]
+        return history_import_fields(layer_type)
 
     def _sync_route_history_panel(self, selected_history_id=None):
         payload = self._route_history_payload(selected_history_id)
@@ -615,6 +543,7 @@ class RouteHistoryMixin:
         if route_feature is None:
             return
 
+        epoch = self.project_epoch
         answer = QMessageBox.question(
             self.iface.mainWindow(),
             "Naver Map QGIS Bridge",
@@ -626,27 +555,23 @@ class RouteHistoryMixin:
             MSGBOX_YES | MSGBOX_NO,
             MSGBOX_NO,
         )
-        if answer != MSGBOX_YES:
+        if answer != MSGBOX_YES or self.project_transitioning or epoch != self.project_epoch:
             return
 
         was_active_history = history_id == self.active_route_history_id
 
-        if self.route_history_layer is not None:
-            self.route_history_layer.dataProvider().deleteFeatures(
-                [route_feature.id()]
-            )
-            self.route_history_layer.updateExtents()
-
-        if self.guidance_history_layer is not None:
-            guidance_ids = [
-                feature.id()
-                for feature in self._guidance_features_for_history(history_id)
-            ]
-            if guidance_ids:
-                self.guidance_history_layer.dataProvider().deleteFeatures(
-                    guidance_ids
-                )
+        try:
+            with history_transaction(self.route_history_layer, self.guidance_history_layer):
+                if not self.route_history_layer.dataProvider().deleteFeatures([route_feature.id()]):
+                    raise RuntimeError("경로 이력 삭제 실패")
+                guidance_ids = [f.id() for f in self._guidance_features_for_history(history_id)]
+                if guidance_ids and not self.guidance_history_layer.dataProvider().deleteFeatures(guidance_ids):
+                    raise RuntimeError("안내 이력 삭제 실패")
+                self.route_history_layer.updateExtents()
                 self.guidance_history_layer.updateExtents()
+        except RuntimeError as exc:
+            QMessageBox.warning(self.iface.mainWindow(), "Naver Map QGIS Bridge", str(exc))
+            return
 
         if was_active_history:
             self._clear_current_route_display()
@@ -694,14 +619,26 @@ class RouteHistoryMixin:
             if project_home
             else default_name
         )
+        epoch = self.project_epoch
         filename, _selected_filter = QFileDialog.getSaveFileName(
             self.iface.mainWindow(),
             "선택 경로 이력 내보내기",
             default_path,
             selected_format,
         )
-        if not filename:
+        if not filename or self.project_transitioning or epoch != self.project_epoch:
             return
+
+        if extension in (".geojson", ".shp"):
+            paths = self._paired_output_paths(filename, extension)
+            output_paths = ([p for path in paths for p in self._shapefile_sidecar_paths(path)]
+                            if extension == ".shp" else [p for path in paths for p in (path, path.with_suffix(".qml"))])
+            existing = [str(path) for path in output_paths if path.exists()]
+            if existing:
+                answer = QMessageBox.question(self.iface.mainWindow(), "Naver Map QGIS Bridge",
+                    "다음 파일을 덮어쓸까요?\n\n" + "\n".join(existing), MSGBOX_YES | MSGBOX_NO, MSGBOX_NO)
+                if answer != MSGBOX_YES or self.project_transitioning or epoch != self.project_epoch:
+                    return
 
         route_layer = self._single_history_layer(
             self.route_history_layer,
@@ -749,6 +686,7 @@ class RouteHistoryMixin:
                 )
                 output_parent = route_path.parent
             elif selected_format == formats[2]:
+                self._validate_shapefile_pair(route_layer, guidance_layer)
                 route_path, guidance_path = self._paired_output_paths(
                     filename,
                     ".shp",
@@ -891,7 +829,7 @@ class RouteHistoryMixin:
             feature.setAttributes(source_feature.attributes())
             copied_features.append(feature)
         if copied_features:
-            provider.addFeatures(copied_features)
+            checked_add(layer, copied_features)
             layer.updateExtents()
         layer.setRenderer(source_layer.renderer().clone())
         return layer
@@ -945,7 +883,7 @@ class RouteHistoryMixin:
                     "sequence": self._safe_number(feature["sequence"]),
                     "section_no": self._safe_number(feature["section_no"]),
                     "guide_type": self._safe_number(feature["guide_type"]),
-                    "category": str(feature["category"] or "other"),
+                    "category": guidance_category(self._safe_number(feature["guide_type"]), str(feature["guidance"] or "")),
                     "guidance": str(feature["guidance"] or "경로 안내"),
                     "name": str(feature["name"] or ""),
                     "distance_m": self._safe_number(feature["distance_m"]),

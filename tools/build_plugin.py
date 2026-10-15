@@ -31,8 +31,9 @@ def package_entries():
             if source.suffix == ".py":
                 ast.parse(source.read_text(encoding="utf-8-sig"), filename=str(relative))
             entries[PREFIX + relative.as_posix()] = source
-    for name in ["README.md", "REFACTORING.md", "TESTING.md"]:
-        entries[PREFIX + name] = ROOT / name
+    entries[PREFIX + "README.md"] = ROOT / "docs" / "package-readme.md"
+    for name in ("install-test-checklist.md",):
+        entries[PREFIX + "docs/" + name] = ROOT / "docs" / name
     example = json.loads((PLUGIN / "settings.example.json").read_text(encoding="utf-8-sig"))
     if not all(isinstance(value, str) and value.startswith("YOUR_") for value in example.values()):
         raise ValueError("Example configuration must contain placeholders only")
