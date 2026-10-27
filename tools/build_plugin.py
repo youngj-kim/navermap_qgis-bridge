@@ -14,6 +14,10 @@ PLUGIN = ROOT / "navermap_qgis_bridge"
 PREFIX = "navermap_qgis_bridge/"
 ROOT_ASSETS = {"metadata.txt", "LICENSE", "icon.png", "settings.example.json"}
 WEB_EXTENSIONS = {".html", ".css", ".js", ".json", ".svg"}
+USER_DOCS = ("setup.md", "usage.md", "troubleshooting.md", "fare-comparison.md",
+             "install-test-checklist.md", "install-test-checklist.html",
+             "setup.en.md", "usage.en.md", "troubleshooting.en.md", "fare-comparison.en.md",
+             "install-test-checklist.en.md", "install-test-checklist.en.html")
 
 
 def package_entries():
@@ -32,7 +36,10 @@ def package_entries():
                 ast.parse(source.read_text(encoding="utf-8-sig"), filename=str(relative))
             entries[PREFIX + relative.as_posix()] = source
     entries[PREFIX + "README.md"] = ROOT / "docs" / "package-readme.md"
-    for name in ("install-test-checklist.md",):
+    entries[PREFIX + "README.en.md"] = ROOT / "docs" / "package-readme.en.md"
+    entries[PREFIX + "CHANGELOG.md"] = ROOT / "CHANGELOG.md"
+    entries[PREFIX + "CHANGELOG.en.md"] = ROOT / "CHANGELOG.en.md"
+    for name in USER_DOCS:
         entries[PREFIX + "docs/" + name] = ROOT / "docs" / name
     example = json.loads((PLUGIN / "settings.example.json").read_text(encoding="utf-8-sig"))
     if not all(isinstance(value, str) and value.startswith("YOUR_") for value in example.values()):
@@ -56,6 +63,10 @@ def validate_archive(filename):
             if PREFIX + name not in names:
                 raise ValueError("Required package file missing: " + name)
         manifest = json.loads(archive.read(PREFIX + "web/viewer_assets.json"))
+        for name in ("README.md", "README.en.md", "CHANGELOG.md", "CHANGELOG.en.md",
+                     *("docs/" + item for item in USER_DOCS)):
+            if PREFIX + name not in names:
+                raise ValueError("User documentation missing: " + name)
         for asset in [manifest["css"], *manifest["scripts"]]:
             if PREFIX + "web/" + asset not in names:
                 raise ValueError("Viewer asset missing: " + asset)
