@@ -4,7 +4,7 @@
 
 Synchronize the position and zoom of QGIS with NAVER Map and Street View. Search for places and addresses, generate driving routes with turn-by-turn instructions, manage route history, and export GIS files.
 
-**Current version: 0.2.0 · Experimental development build** · [User guide](docs/usage.en.md) · [Installation and API keys](docs/setup.en.md) · [Changelog](CHANGELOG.en.md)
+**Current version: 1.0 · Prepared for a QGIS repository update** · [User guide](docs/usage.en.md) · [Installation and API keys](docs/setup.en.md) · [Changelog](CHANGELOG.en.md)
 
 ## Install and get started
 
@@ -16,7 +16,7 @@ Synchronize the position and zoom of QGIS with NAVER Map and Street View. Search
 
 Each user supplies their own credentials. See [Installation and API keys](docs/setup.en.md) for obtaining credentials, distinguishing the four key settings, updating the plugin, and using an external browser. Native plugin menus remain in Korean; the setup guide identifies their exact labels.
 
-No GitHub Release has been published yet. **Code → Download ZIP** downloads the source repository, not a QGIS installation ZIP. The installation guide explains how to use a supplied installation package or build one from source.
+The 1.0 installation ZIP is prepared for a QGIS plugin repository update. Repository upload/approval and publishing a GitHub Release are separate steps. **Code → Download ZIP** downloads the source repository, not a QGIS installation ZIP. The installation guide explains how to use a supplied installation package or build one from source.
 
 ## Main features
 

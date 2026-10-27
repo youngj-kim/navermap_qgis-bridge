@@ -20,7 +20,7 @@ The embedded viewer needs Qt WebEngine and WebChannel. When unavailable, the plu
 
 Before updating, save any history you need and close old external-browser tabs. Install the new ZIP, restart QGIS, and open a fresh tab from the plugin. Credentials in the same QGIS profile are stored separately from the plugin folder.
 
-The current metadata version is `0.2.0`. Names such as `fix4` distinguish development ZIP packages, not separate release versions. No GitHub Release has been published yet. Future published packages can be found under [Releases](https://github.com/youngj-kim/navermap_qgis-bridge/releases).
+The current metadata version is `1.0`. Names such as `fix4` identify earlier 0.2.0 test packages. Use `navermap_qgis_bridge-1.0.zip` for the 1.0 upload. No GitHub Release has been published yet. Future published packages can be found under [Releases](https://github.com/youngj-kim/navermap_qgis-bridge/releases).
 
 ### Installing from source
 

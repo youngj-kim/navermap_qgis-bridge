@@ -47,10 +47,10 @@ The runtime group covers layers, files, localhost HTTP, project lifetime, histor
 ## Build an installation ZIP
 
 ```powershell
-python -B tools/build_plugin.py --label test-20261027-docs
+python -B tools/build_plugin.py --release
 ```
 
-The version is read from `metadata.txt`; the label affects only the filename. Output is `dist/navermap_qgis_bridge-0.2.0-test-20261027-docs.zip`. Existing ZIPs are not overwritten, so change the label for another build.
+The version is read from `metadata.txt`; `--release` uses a version-only filename. Use `--label YOUR_TEST_LABEL` for test packages. Output is `dist/navermap_qgis_bridge-1.0.zip`. Existing ZIPs are not overwritten, so use a different test label for another build.
 
 The builder checks the single plugin root, Python syntax/internal imports, web assets, and ZIP CRC. It includes installation READMEs, setup/usage/troubleshooting guides, changelogs, and manual checklists in Korean and English. It excludes development tests/tools, local settings, and caches. Relative documentation links must work inside the ZIP.
 

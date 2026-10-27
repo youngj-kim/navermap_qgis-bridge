@@ -49,10 +49,10 @@ python -B tests/run_checks.py --group qgis --qgis-launcher 'C:\Program Files\QGI
 ## 설치 ZIP 생성
 
 ```powershell
-python -B tools/build_plugin.py --label test-20261027-docs
+python -B tools/build_plugin.py --release
 ```
 
-버전은 `metadata.txt`에서 읽고 label은 파일명에만 붙입니다. 결과는 `dist/navermap_qgis_bridge-0.2.0-test-20261027-docs.zip`입니다. 같은 파일을 덮어쓰지 않으므로 재빌드 시 label을 바꿉니다.
+버전은 `metadata.txt`에서 읽으며 `--release`는 label 없는 배포 파일명을 사용합니다. 테스트 패키지는 `--label YOUR_TEST_LABEL`로 구분합니다. 결과는 `dist/navermap_qgis_bridge-1.0.zip`입니다. 같은 파일을 덮어쓰지 않으므로 재빌드 시에는 다른 테스트 label을 사용합니다.
 
 생성기는 단일 플러그인 루트, Python 문법·내부 import·웹 리소스·ZIP CRC를 검사합니다. 한글·영문 설치 README, 사용·설치·문제 해결 가이드, 변경 기록과 수동 체크리스트를 포함하며 개발 테스트·빌드 도구·로컬 설정·캐시는 제외합니다. 설치용 README의 문서 링크는 ZIP 안에서 열려야 합니다.
 

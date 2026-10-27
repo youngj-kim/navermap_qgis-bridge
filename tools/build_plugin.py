@@ -84,10 +84,13 @@ def validate_archive(filename):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--label", default="test-20261008", help="Filename label, not metadata version")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--label", help="Test filename label, not metadata version")
+    mode.add_argument("--release", action="store_true", help="Build a version-only release filename")
     args = parser.parse_args()
-    if not args.label or any(character not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"
-                             for character in args.label):
+    label = None if args.release else (args.label if args.label is not None else "test-20261008")
+    if label is not None and (not label or any(character not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"
+                                              for character in label)):
         raise ValueError("Invalid build label")
     metadata = configparser.ConfigParser()
     metadata.read(PLUGIN / "metadata.txt", encoding="utf-8-sig")
@@ -95,10 +98,14 @@ def main():
     if not version or any(character not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-_"
                           for character in version):
         raise ValueError("Invalid metadata version")
-    output = ROOT / "dist" / f"navermap_qgis_bridge-{version}-{args.label}.zip"
+    if args.release and (metadata["general"].getboolean("experimental", fallback=True)
+                         or not metadata["general"].get("changelog", "").strip()):
+        raise ValueError("Release builds require non-experimental metadata and a changelog")
+    suffix = "" if label is None else f"-{label}"
+    output = ROOT / "dist" / f"navermap_qgis_bridge-{version}{suffix}.zip"
     entries = package_entries()
     output.parent.mkdir(exist_ok=True)
-    # Never overwrite an existing test package silently.
+    # Never overwrite an existing package silently.
     with ZipFile(output, "x", compression=ZIP_DEFLATED) as archive:
         for name, source in sorted(entries.items()):
             archive.write(source, name)

@@ -2,15 +2,22 @@
 name=Naver Map QGIS Bridge
 qgisMinimumVersion=3.34
 qgisMaximumVersion=4.99
-description=Dock-based Naver Map and Street View viewer with bidirectional QGIS synchronization and geocoding search.
-version=0.2.0
+description=Synchronize NAVER Map and Street View with QGIS, search places, and manage driving routes and history.
+version=1.0
 author=yjkim
 email=contact@yjkim.dev
-about=Shows Naver Maps JavaScript API content inside a QGIS dock widget and synchronizes QGIS, Naver Map, and Street View in both directions. Includes geocoding search, route search, and Street View position/direction display. Naver tile URLs are not extracted or used as XYZ/TMS layers.
+about=View NAVER Map and Street View in an embedded dock or an external browser with bidirectional position and zoom synchronization. Place search and driving routes target South Korea. Create routes with up to five waypoints, inspect turn-by-turn instructions, import saved route history, and export GeoPackage, GeoJSON, Shapefile, or GPX. Includes EN/KR controls and API-provided English instructions for new routes. Internet access and users' own NAVER Maps and NAVER API HUB credentials are required. Embedded mode requires Qt WebEngine and WebChannel; an external-browser fallback is provided. Map tiles are not extracted or registered as QGIS XYZ/TMS layers. Korean and English guides are included.
+changelog=1.0 - 2026-10-27
+    Prepare the first non-experimental release package for QGIS repository submission.
+    Add Korean and English installation, API-key, usage, troubleshooting, and release documentation.
+    Keep directions/history accessible when controls are collapsed or instructions are empty.
+    Support multi-file history import, batch deletion, and legacy coordinate precision.
+    Request English route instructions and place names when generating routes in EN mode.
+tags=naver,street view,roadview,routing,geocoding,map synchronization
 category=Web
 icon=icon.png
 tracker=https://github.com/youngj-kim/navermap_qgis-bridge/issues
 repository=https://github.com/youngj-kim/navermap_qgis-bridge
 homepage=https://github.com/youngj-kim/navermap_qgis-bridge
-experimental=True
+experimental=False
 deprecated=False

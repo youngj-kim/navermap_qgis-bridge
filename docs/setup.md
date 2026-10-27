@@ -22,7 +22,7 @@ QGIS 3.34 LTR 이상 또는 QGIS 4.x, 인터넷 연결, 본인의 NAVER Cloud �
 
 업데이트 전에는 필요한 이력을 파일로 저장하고 기존 외부 브라우저 탭을 닫으세요. 새 ZIP으로 설치한 뒤 QGIS를 다시 시작하고 플러그인에서 새 탭을 엽니다. 같은 QGIS 프로필의 인증 설정은 플러그인 폴더와 별도로 저장됩니다.
 
-현재 메타데이터 버전은 `0.2.0`입니다. `fix4` 같은 ZIP 파일명의 표시는 개발 패키지를 구분하는 이름이며 별도의 릴리스 버전이 아닙니다. 아직 GitHub Release는 게시하지 않았습니다. 향후 게시된 패키지는 [Releases](https://github.com/youngj-kim/navermap_qgis-bridge/releases)에서 확인할 수 있습니다.
+현재 메타데이터 버전은 `1.0`입니다. `fix4`는 이전 0.2.0 테스트 패키지의 구분자입니다. 1.0 업로드에는 `navermap_qgis_bridge-1.0.zip`을 사용합니다. 아직 GitHub Release는 게시하지 않았습니다. 향후 게시된 패키지는 [Releases](https://github.com/youngj-kim/navermap_qgis-bridge/releases)에서 확인할 수 있습니다.
 
 ### 소스 설치
 

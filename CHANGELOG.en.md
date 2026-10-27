@@ -2,7 +2,14 @@
 
 [한국어](CHANGELOG.md) | English · [Home](README.en.md) · [Update instructions](docs/setup.en.md) · [Release checklist](https://github.com/youngj-kim/navermap_qgis-bridge/blob/main/docs/release-checklist.en.md)
 
-The version authority is `navermap_qgis_bridge/metadata.txt`. The current version is **0.2.0**, an **experimental development build**. No GitHub Release or official release tag has been published. Dates below group development changes; they do not each identify a new release. `fix1` through `fix4` are test-ZIP identifiers within the same version.
+The version authority is `navermap_qgis_bridge/metadata.txt`. The current version is **1.0**, **prepared for a QGIS repository update**. No GitHub Release or official release tag has been published. Dates below group development changes; they do not each identify a new release. `fix1` through `fix4` identify earlier 0.2.0 test ZIPs.
+
+## 1.0 — 2026-10-27 (prepared for a QGIS repository update)
+
+- Set metadata version to 1.0 and `experimental=False` for a non-experimental distribution package. This does not expand the verified environments or supported scope automatically.
+- Include the existing routes, instructions, history, EN/KR features, and Korean/English user documentation. There are no functional changes from the 0.2.0 test build.
+- Generate `navermap_qgis_bridge-1.0.zip` and its SHA256. Repository upload, review, and approval are separate steps and are not marked complete.
+- Save history before updating, install the ZIP, and restart QGIS/external tabs. See TESTING for remaining exact-QGIS-3.34 and environment-specific live-API verification.
 
 ## Documentation organization — 2026-10-27
 
@@ -11,7 +18,7 @@ The version authority is `navermap_qgis_bridge/metadata.txt`. The current versio
 - Consolidated user-facing changes here while preserving the original locations of earlier reviews and test records.
 - Included user guides and the updated checklist in installation ZIPs. Plugin behavior and version are unchanged.
 
-## 0.2.0 — Current development build (as of 2026-10-27)
+## 0.2.0 — Development stage (as of 2026-10-27)
 
 ### Viewer and language
 

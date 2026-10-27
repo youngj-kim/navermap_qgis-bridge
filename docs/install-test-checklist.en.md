@@ -2,7 +2,7 @@
 
 [한국어](install-test-checklist.md) | English
 
-Target: the `0.2.0` development build. [Installation and setup](setup.en.md) · [User guide](usage.en.md). Check items only after verifying the expected result in the actual viewer. Automated/offline checks have been completed, but environment-specific live NAVER integration and exact QGIS 3.34 verification remain outstanding.
+Target: the `1.0` distribution package. [Installation and setup](setup.en.md) · [User guide](usage.en.md). Check items only after verifying the expected result in the actual viewer. Automated/offline checks have been completed, but environment-specific live NAVER integration and exact QGIS 3.34 verification remain outstanding.
 
 ## 1. Preparation and installation
 
