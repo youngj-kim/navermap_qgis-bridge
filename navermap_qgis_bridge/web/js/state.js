@@ -67,9 +67,11 @@
     let routeGuidance = [];
     let routeHistory = [];
     let routePolyline = null;
+    let displayedRoutePayload = null;
     let activeGuidanceSequence = null;
     let activeRouteHistoryId = "";
     let activeRoutePanelTab = "guidance";
+    let routePanelOpened = false;
     let qgisBridge = null;
     let qgisBridgeInitializing = false;
     let qgisBridgeRetryTimer = null;

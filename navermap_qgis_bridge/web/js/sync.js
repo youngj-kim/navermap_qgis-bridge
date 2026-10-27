@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
     function syncNaverMapToQgis(force = false, dragFinished = false) {
       if (!force && isBridgeSyncSuppressed()) {
-        window.setReverseSyncDiagnostic("JS 보류: QGIS 동기화 중");
+        window.setReverseSyncDiagnostic(uiText("JS 보류: QGIS 동기화 중"));
         return;
       }
-      window.setReverseSyncDiagnostic("JS 이벤트 수신");
+      window.setReverseSyncDiagnostic(uiText("JS 이벤트 수신"));
       let position;
       let lat;
       let lon;
@@ -13,12 +13,12 @@
         lat = position.lat();
         lon = position.lng();
       } catch (error) {
-        window.setReverseSyncDiagnostic(`JS 좌표 오류: ${error.message}`);
+        window.setReverseSyncDiagnostic(uiText`JS 좌표 오류: ${error.message}`);
         return;
       }
 
       if (!qgisBridge) {
-        window.setReverseSyncDiagnostic("JS 실패: QGIS bridge 없음");
+        window.setReverseSyncDiagnostic(uiText("JS 실패: QGIS bridge 없음"));
         setStatus("Naver Map moved, but the QGIS bridge is not ready.");
         return;
       }
@@ -30,13 +30,13 @@
         try {
           qgisBridge.zoomQgisView(lon, lat, naverGroundResolution());
           mapViewSnapshot = {lon, lat, zoom};
-        } catch (_error) { setStatus("지도 확대 비율을 전달하지 못했습니다."); }
+        } catch (_error) { setStatus(uiText("지도 확대 비율을 전달하지 못했습니다.")); }
         return;
       }
       marker.setPosition(position);
 
       window.setReverseSyncDiagnostic(
-        `JS 호출: ${lat.toFixed(6)}, ${lon.toFixed(6)}`
+        uiText`JS 호출: ${lat.toFixed(6)}, ${lon.toFixed(6)}`
       );
       try {
         // Use the same two-argument call as the working panorama -> QGIS path.
@@ -46,8 +46,8 @@
           moveViewer(lon, lat, {suppressBridge:true});
         }
       } catch (_error) {
-        window.setReverseSyncDiagnostic("JS 실패: 지도 위치 전달 오류");
-        setStatus("지도 위치를 전달하지 못했습니다. 다시 이동해 주세요.");
+        window.setReverseSyncDiagnostic(uiText("JS 실패: 지도 위치 전달 오류"));
+        setStatus(uiText("지도 위치를 전달하지 못했습니다. 다시 이동해 주세요."));
         return;
       }
       setStatus(`Naver Map -> QGIS EPSG:4326 ${lat.toFixed(6)}, ${lon.toFixed(6)}.`);

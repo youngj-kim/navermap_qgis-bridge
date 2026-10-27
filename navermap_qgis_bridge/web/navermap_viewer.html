@@ -20,6 +20,7 @@ __VIEWER_CSS__
           <option value="map-left">지도 좌 / 로드뷰 우</option>
           <option value="roadview-left">로드뷰 좌 / 지도 우</option>
         </select>
+        <button id="map-language-toggle" type="button" aria-label="영문 지도로 전환" aria-pressed="false" disabled>EN</button>
         <button id="fullscreen-toggle" type="button" title="전체화면 전환" aria-label="전체화면 전환">⛶</button>
       </div>
       <div id="explorer-body">
@@ -91,6 +92,8 @@ __VIEWER_CSS__
           <button id="route-reset" type="button" title="경로 입력 초기화" aria-label="경로 입력 초기화" disabled>×</button>
         </div>
       </div>
+      <div id="search-results" role="listbox" aria-label="검색 결과" hidden></div>
+      </div>
       <section id="route-guidance-panel" aria-label="경로 안내" data-collapsed="false" hidden>
         <div id="route-guidance-summary">
           <div id="route-panel-tabs" role="tablist" aria-label="경로 정보">
@@ -103,8 +106,6 @@ __VIEWER_CSS__
         <div id="route-guidance-list" role="listbox" aria-label="순서별 경로 안내"></div>
         <div id="route-history-list" role="listbox" aria-label="경로 이력" hidden></div>
       </section>
-      <div id="search-results" role="listbox" aria-label="검색 결과" hidden></div>
-      </div>
     </header>
     <section id="map" aria-label="Naver map"><div id="map-surface"></div></section>
     <div id="view-splitter" role="separator" aria-label="지도와 로드뷰 크기 조절" aria-orientation="horizontal">

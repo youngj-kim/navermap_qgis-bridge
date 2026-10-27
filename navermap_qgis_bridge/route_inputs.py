@@ -61,6 +61,9 @@ def normalize_route_request(origin_lon, origin_lat, destination_lon, destination
         car_fuel = 'gasoline'
     car_hipass = False
     vehicle_options = {'car_type': car_type, 'car_fuel': car_fuel, 'car_hipass': car_hipass}
+    # The existing JSON settings envelope carries request language without
+    # changing the Qt/HTTP bridge signature or saved vehicle settings.
+    language = 'en' if vehicle_data.get('language') == 'en' else 'ko'
     waypoints = []
     point_ids = set()
     for index, item in enumerate(waypoint_data):
@@ -84,4 +87,4 @@ def normalize_route_request(origin_lon, origin_lat, destination_lon, destination
         waypoints.append({'id': point_id, 'label': str(item.get('label') or '').strip()[:255],
                           'lon': lon, 'lat': lat})
     return dict(priority=priority, waypoints=waypoints, avoid_options=avoid_options,
-                vehicle_options=vehicle_options)
+                vehicle_options=vehicle_options, language=language)

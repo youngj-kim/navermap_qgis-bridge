@@ -260,6 +260,7 @@ class SearchRouteMixin:
                 (origin_lon, origin_lat), (destination_lon, destination_lat),
                 priority, waypoints, avoid_options, car_type, car_fuel,
                 client_id, client_secret,
+                language=inputs["language"],
             )
         except ValueError as exc:
             self._set_route_status(False, str(exc))

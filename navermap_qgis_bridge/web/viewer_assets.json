@@ -1,15 +1,18 @@
 {
   "css": "viewer.css",
   "scripts": [
+    "js/i18n.js",
     "js/state.js",
     "js/layout.js",
     "js/viewer_utils.js",
+    "js/guidance_language.js",
     "js/history_ui.js",
     "js/bridge.js",
     "js/route_inputs.js",
     "js/sync.js",
     "js/search.js",
     "js/viewer_options.js",
+    "js/map_language.js",
     "js/sdk_events.js",
     "js/navigation.js"
   ]

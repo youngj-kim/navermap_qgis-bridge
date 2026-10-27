@@ -16,6 +16,8 @@ const context = vm.createContext({
        getProjection:()=>({fromCoordToOffset:()=>({x:0,y:0}),fromOffsetToCoord:p=>p,
                           getDistance:()=>128*2**(17-zoom)})}
 });
+context.mapLanguage = 'ko';
+vm.runInContext(read('i18n.js'), context);
 vm.runInContext(read('sync.js'), context);
 vm.runInContext(read('navigation.js').split('    window.loadRouteHistoryInput')[0], context);
 zoom = 17;

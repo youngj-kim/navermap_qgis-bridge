@@ -14,6 +14,8 @@ const context = vm.createContext({
   renderSearchResults: results => renders.push(results),
   selectSearchResult: result => selections.push(result)
 });
+context.mapLanguage = 'ko';
+vm.runInContext(require('fs').readFileSync(require('path').join(__dirname, '../../navermap_qgis_bridge/web/js/i18n.js'), 'utf8'), context);
 vm.runInContext(source.slice(source.indexOf('    function searchLocal(')), context);
 context.searchLocal('old place');
 assert.equal(context.searchSubmit.disabled, true);

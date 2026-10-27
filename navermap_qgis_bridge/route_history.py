@@ -18,7 +18,7 @@ from qgis.PyQt.QtWidgets import QFileDialog, QInputDialog, QMessageBox
 from .compat import MSGBOX_NO, MSGBOX_YES, MSG_CRITICAL, MSG_WARNING
 from .fare_values import fare_amount
 from .data_transforms import guidance_category
-from .history_operations import checked_add, history_transaction, normalize_guidance_feature, validate_import_pair
+from .history_operations import checked_add, history_transaction, normalize_guidance_feature, validate_import_pair, history_dialog_operation
 from .history_schema import history_memory_uri, history_import_fields
 from .constants import (
     LOG_TAG,
@@ -156,10 +156,11 @@ class RouteHistoryMixin:
 
         return self.route_history_layer, self.guidance_history_layer
 
+    @history_dialog_operation
     def _load_route_history_file(self, _checked=False):
         project_home = QgsProject.instance().homePath()
         epoch = self.project_epoch
-        filename, _selected_filter = QFileDialog.getOpenFileName(
+        filenames, _selected_filter = QFileDialog.getOpenFileNames(
             self.iface.mainWindow(),
             "경로 이력 불러오기",
             project_home or "",
@@ -170,32 +171,27 @@ class RouteHistoryMixin:
                 "Shapefile (*.shp)"
             ),
         )
-        if not filename or self.project_transitioning or epoch != self.project_epoch:
+        if not filenames or self.project_transitioning or epoch != self.project_epoch:
             return
 
-        input_path = Path(filename)
+        route_count = guidance_count = 0
         try:
-            route_source, guidance_source = self._open_history_sources(
-                input_path
-            )
-            validate_import_pair(route_source, guidance_source, self._history_value)
-            existing_routes = self._memory_history_ids(self.route_history_layer)
-            route_ids = {str(self._history_value(f, set(route_source.fields().names()), "history_id", "hist_id"))
-                         for f in route_source.getFeatures()} - existing_routes
+            sources = []
+            for filename in filenames:
+                route_source, guidance_source = self._open_history_sources(Path(filename))
+                validate_import_pair(route_source, guidance_source, self._history_value)
+                sources.append((route_source, guidance_source))
             with history_transaction(self.route_history_layer, self.guidance_history_layer):
-                route_count = self._append_imported_history(
-                    route_source,
-                    self.route_history_layer,
-                    "LineString",
-                    self._full_history_field_specs("route"),
-                )
-                guidance_count = self._append_imported_history(
-                    guidance_source,
-                    self.guidance_history_layer,
-                    "Point",
-                    self._full_history_field_specs("guidance"),
-                    allowed_ids=route_ids,
-                )
+                for route_source, guidance_source in sources:
+                    existing_routes = self._memory_history_ids(self.route_history_layer)
+                    route_ids = {str(self._history_value(f, set(route_source.fields().names()), "history_id", "hist_id"))
+                                 for f in route_source.getFeatures()} - existing_routes
+                    route_count += self._append_imported_history(
+                        route_source, self.route_history_layer, "LineString",
+                        self._full_history_field_specs("route"))
+                    guidance_count += self._append_imported_history(
+                        guidance_source, self.guidance_history_layer, "Point",
+                        self._full_history_field_specs("guidance"), allowed_ids=route_ids)
         except RuntimeError as exc:
             QgsMessageLog.logMessage(
                 str(exc),
@@ -215,7 +211,7 @@ class RouteHistoryMixin:
             message = "선택한 파일의 이력이 이미 현재 세션에 있습니다."
         else:
             message = (
-                f"경로 이력 불러오기 완료: 경로 {route_count}건, "
+                f"경로 이력 불러오기 완료 ({len(filenames)}개 파일): 경로 {route_count}건, "
                 f"안내 {guidance_count}건"
         )
         self.iface.messageBar().pushSuccess("Naver Map QGIS Bridge", message)
@@ -539,32 +535,43 @@ class RouteHistoryMixin:
         )
 
     def _delete_route_history(self, history_id):
-        route_feature = self._route_feature_for_history(history_id)
-        if route_feature is None:
+        self._delete_route_histories(json.dumps([history_id]))
+
+    @history_dialog_operation
+    def _delete_route_histories(self, history_ids_json):
+        try:
+            history_ids = json.loads(history_ids_json)
+        except (ValueError, TypeError):
+            return
+        if not isinstance(history_ids, list) or not all(isinstance(item, str) for item in history_ids):
+            return
+        selected_ids = set(history_ids)
+        if self.route_history_layer is None or self.project_transitioning:
+            return
+        route_features = [f for f in self.route_history_layer.getFeatures()
+                          if str(f["history_id"]) in selected_ids]
+        if not route_features:
             return
 
         epoch = self.project_epoch
         answer = QMessageBox.question(
             self.iface.mainWindow(),
             "Naver Map QGIS Bridge",
-            (
-                "선택한 경로 이력을 삭제할까요?\n\n"
-                f"{route_feature['origin_name']} → "
-                f"{route_feature['destination_name']}"
-            ),
+            f"선택한 경로 이력 {len(route_features)}건을 삭제할까요?",
             MSGBOX_YES | MSGBOX_NO,
             MSGBOX_NO,
         )
         if answer != MSGBOX_YES or self.project_transitioning or epoch != self.project_epoch:
             return
 
-        was_active_history = history_id == self.active_route_history_id
+        was_active_history = self.active_route_history_id in selected_ids
 
         try:
             with history_transaction(self.route_history_layer, self.guidance_history_layer):
-                if not self.route_history_layer.dataProvider().deleteFeatures([route_feature.id()]):
+                if not self.route_history_layer.dataProvider().deleteFeatures([f.id() for f in route_features]):
                     raise RuntimeError("경로 이력 삭제 실패")
-                guidance_ids = [f.id() for f in self._guidance_features_for_history(history_id)]
+                guidance_ids = [f.id() for f in self.guidance_history_layer.getFeatures()
+                                if str(f["history_id"]) in selected_ids]
                 if guidance_ids and not self.guidance_history_layer.dataProvider().deleteFeatures(guidance_ids):
                     raise RuntimeError("안내 이력 삭제 실패")
                 self.route_history_layer.updateExtents()

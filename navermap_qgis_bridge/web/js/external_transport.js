@@ -172,6 +172,12 @@
     loadRouteHistory(history_id) {
       post("/api/load-route-history", { history_id });
     },
+    importRouteHistory() {
+      post("/api/import-route-history", {});
+    },
+    deleteRouteHistories(history_ids_json) {
+      post("/api/delete-route-histories", { history_ids_json });
+    },
     deleteRouteHistory(history_id) {
       post("/api/delete-route-history", { history_id });
     },

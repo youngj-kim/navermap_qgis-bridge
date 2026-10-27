@@ -52,6 +52,14 @@ class RoutePolicyTests(unittest.TestCase):
         self.submit([])
         self.request.assert_not_called()
 
+    def test_request_language_reaches_api_boundary(self):
+        for language, expected in [("en", "en"), ("ko", "ko"), (None, "ko"), ("bad", "ko")]:
+            self.run_request(self.host, 127, 37, 128, 38, "TIME", "[]", "[]",
+                             json.dumps({"language": language}), "A", "B")
+            self.assertEqual(self.request.call_args.kwargs["language"], expected)
+        self.submit([])
+        self.assertEqual(self.request.call_args.kwargs["language"], "ko")
+
 
 class RouteValidationTests(unittest.TestCase):
     def request(self, **changes):

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
     function normalizeAddressResult(address) {
       if (address.point) {
-        const detail = address.address || "주소 검색 결과";
+        const detail = address.address || uiText("주소 검색 결과");
         return {
           title: detail,
           address: detail,
@@ -10,7 +10,7 @@
         };
       }
 
-      const detail = address.roadAddress || address.jibunAddress || address.englishAddress || "주소 검색 결과";
+      const detail = address.roadAddress || address.jibunAddress || address.englishAddress || uiText("주소 검색 결과");
 
       return {
         title: detail,
@@ -75,7 +75,7 @@
         return new Promise((resolve, reject) => {
           const timer = window.setTimeout(() => {
             localSearchRequests.delete(requestId);
-            reject(new Error("POI 검색 응답 시간이 초과되었습니다."));
+            reject(new Error(uiText("POI 검색 응답 시간이 초과되었습니다.")));
           }, 8000);
 
           localSearchRequests.set(requestId, {
@@ -93,7 +93,7 @@
           if (generation !== searchRequestId) return [];
           console.warn("Naver API HUB local search failed", error);
           lastLocalSearchError =
-            error && error.message ? error.message : "POI 검색에 실패했습니다.";
+            error && error.message ? error.message : uiText("POI 검색에 실패했습니다.");
           return [];
         });
       }
@@ -138,7 +138,7 @@
       if (!results.length) {
         const empty = document.createElement("div");
         empty.className = "search-empty";
-        empty.textContent = "검색 결과가 없습니다.";
+        empty.textContent = uiText("검색 결과가 없습니다.");
         searchResults.appendChild(empty);
         searchResults.hidden = false;
         return;
@@ -178,7 +178,7 @@
       if (coordinate) {
         searchSubmit.disabled = false;
         const result = {
-          title: "입력 좌표",
+          title: uiText("입력 좌표"),
           address: formatCoordinate(coordinate),
           lon: coordinate.lon,
           lat: coordinate.lat,
@@ -232,13 +232,13 @@
           }
           renderSearchResults(results, onSelect);
           setStatus(failed && !results.length
-            ? (lastLocalSearchError || "POI/주소 검색 결과가 없습니다.")
+            ? (lastLocalSearchError || uiText("POI/주소 검색 결과가 없습니다."))
             : `Naver POI/address search results: ${results.length}`);
         })
         .catch((error) => {
           if (requestId === searchRequestId) {
             renderSearchResults([]);
-            setStatus(error && error.message ? error.message : "주소 검색 중 오류가 발생했습니다.");
+            setStatus(error && error.message ? error.message : uiText("주소 검색 중 오류가 발생했습니다."));
           }
         })
         .finally(() => {

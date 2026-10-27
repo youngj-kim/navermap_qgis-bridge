@@ -30,12 +30,19 @@ class NaverWebBridge(QObject):
     routeHistorySelected = pyqtSignal(str)
     routeHistoryLoadRequested = pyqtSignal(str)
     routeHistoryDeleteRequested = pyqtSignal(str)
+    routeHistoryImportRequested = pyqtSignal()
+    routeHistoryBatchDeleteRequested = pyqtSignal(str)
     routeHistoryExportRequested = pyqtSignal(str)
     routeHistoryRefreshRequested = pyqtSignal()
     localSearchRequested = pyqtSignal(str, str)
     fullScreenRequested = pyqtSignal()
+    viewerReloadRequested = pyqtSignal()
     routeCancelRequested = pyqtSignal()
     projectReset = pyqtSignal(int)
+
+    @pyqtSlot()
+    def reloadViewer(self):
+        self.viewerReloadRequested.emit()
 
     @pyqtSlot()
     def cancelRoute(self):
@@ -123,6 +130,14 @@ class NaverWebBridge(QObject):
     @pyqtSlot(str)
     def loadRouteHistory(self, history_id):
         self.routeHistoryLoadRequested.emit(history_id)
+
+    @pyqtSlot()
+    def importRouteHistory(self):
+        self.routeHistoryImportRequested.emit()
+
+    @pyqtSlot(str)
+    def deleteRouteHistories(self, history_ids_json):
+        self.routeHistoryBatchDeleteRequested.emit(history_ids_json)
 
     @pyqtSlot(str)
     def deleteRouteHistory(self, history_id):

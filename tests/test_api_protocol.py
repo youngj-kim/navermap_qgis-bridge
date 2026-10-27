@@ -42,6 +42,12 @@ class ApiProtocolTests(unittest.TestCase):
             with self.subTest(data=data):
                 self.assertEqual(api.decode_payload(data), {})
 
+    def test_route_language_default_and_whitelist(self):
+        for language, expected in [("en", "en"), ("ko", "ko"), (None, "ko"), ("ja", "ko"), ([], "ko")]:
+            with self.subTest(language=language):
+                params = dict(api.route_parameters((127, 37), (128, 38), "TIME", [], [], 1, "gasoline", language))
+                self.assertEqual(params["lang"], expected)
+
     def test_local_error_precedence(self):
         cases = [({"errorMessage": "first", "error": {"message": "second"}}, "first"),
                  ({"error": {"message": "nested", "details": "detail"}}, "nested"),
@@ -108,6 +114,11 @@ class QtRequestBoundaryTests(unittest.TestCase):
         self.assertEqual([c.args for c in self.request.setRawHeader.call_args_list], [
             (b"x-ncp-apigw-api-key-id", b"PLACEHOLDER_ID"),
             (b"x-ncp-apigw-api-key", b"PLACEHOLDER_SECRET"), (b"Content-Type", b"application/json")])
+
+    def test_english_language_reaches_qt_query(self):
+        self.namespace["route_request"]((127, 37), (128, 38), "TIME", [], [],
+                                       1, "gasoline", "PLACEHOLDER_ID", "PLACEHOLDER_SECRET", language="en")
+        self.assertIn(("lang", "en"), [call.args for call in self.query.addQueryItem.call_args_list])
 
     def test_reply_read_before_deletion(self):
         reply = Mock()

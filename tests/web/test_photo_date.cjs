@@ -11,6 +11,8 @@ const context = vm.createContext({document: {getElementById: id => {
   assert.equal(id, 'roadview-photo-date');
   return label;
 }}, roadview: null});
+context.mapLanguage = 'ko';
+vm.runInContext(fs.readFileSync(require('path').join(__dirname, '../../navermap_qgis_bridge/web/js/i18n.js'), 'utf8'), context);
 vm.runInContext(html.slice(start, end), context);
 let count = 0;
 for (const [location, expected] of [

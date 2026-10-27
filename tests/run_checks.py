@@ -9,8 +9,9 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 WEB_CHECKS = ("test_photo_date.cjs", "test_coordinates.cjs", "test_search_lifetime.cjs",
-              "test_external_transport.cjs", "test_view_scale.cjs", "test_workflows.cjs", "test_viewer_layout.cjs")
-QGIS_CHECKS = ("qgis_smoke.py", "qgis_bridge_smoke.py", "qgis_lifecycle_smoke.py", "qgis_review_smoke.py")
+              "test_external_transport.cjs", "test_view_scale.cjs", "test_workflows.cjs", "test_viewer_layout.cjs", "test_map_language.cjs", "test_history_batch.cjs")
+QGIS_CHECKS = ("qgis_smoke.py", "qgis_bridge_smoke.py", "qgis_lifecycle_smoke.py", "qgis_review_smoke.py",
+               "qgis_history_precision_smoke.py", "qgis_history_batch_smoke.py", "qgis_route_language_smoke.py")
 
 
 def main():

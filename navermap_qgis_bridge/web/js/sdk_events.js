@@ -1,7 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
     const viewerOptions = createNaverViewerOptions({
       getMap: () => map, getMaps: () => naver.maps,
-      relayout: scheduleStableRelayout, onError: setStatus
+      relayout: scheduleStableRelayout, onError: setStatus,
+      onExplorerCollapse: () => {
+        if (!routePanelOpened) {
+          renderRouteHistory({items: routeHistory, selected_history_id: activeRouteHistoryId});
+          activateRoutePanelTab("history");
+        }
+      }
     });
 
     function loadNaverScript(appKey) {
@@ -26,6 +32,7 @@
           "https://oapi.map.naver.com/openapi/v3/maps.js" +
           `?ncpKeyId=${encodeURIComponent(appKey)}` +
           "&submodules=panorama,geocoder" +
+          `&language=${mapLanguage}` +
           `&callback=${encodeURIComponent(callbackName)}`;
         script.async = true;
         script.onerror = () => {
@@ -68,7 +75,7 @@
       });
 
       naver.maps.Event.addListener(map, "dragend", () => {
-        window.setReverseSyncDiagnostic("NAVER dragend 감지");
+        window.setReverseSyncDiagnostic(uiText("NAVER dragend 감지"));
         window.clearTimeout(mapSyncTimer);
         mapSyncTimer = null;
         const wasDragging = mapDragActive;
@@ -78,7 +85,7 @@
 
       mapElement.addEventListener("pointerdown", () => {
         mapPointerActive = true;
-        window.setReverseSyncDiagnostic("지도 pointerdown 감지");
+        window.setReverseSyncDiagnostic(uiText("지도 pointerdown 감지"));
       }, true);
       document.addEventListener("pointerup", () => {
         if (!mapPointerActive) {
@@ -87,7 +94,7 @@
         mapPointerActive = false;
         const wasDragging = mapDragActive;
         mapDragActive = false;
-        window.setReverseSyncDiagnostic("지도 pointerup 감지");
+        window.setReverseSyncDiagnostic(uiText("지도 pointerup 감지"));
         window.clearTimeout(mapSyncTimer);
         mapSyncTimer = null;
         window.setTimeout(() => syncNaverMapToQgis(true, wasDragging), 0);
@@ -188,6 +195,8 @@
         pendingView = null;
         window.syncNaverView(view.lon, view.lat, view.metersPerPixel, view.preserveRoadview);
       }
+      restoreMapLanguageState();
+      initializeMapLanguageButton();
     }
 
     viewerLayoutSelect.addEventListener("change", () => {
@@ -204,7 +213,7 @@
       try {
         await toggleBrowserFullScreen();
       } catch (_error) {
-        setStatus("전체화면 전환을 사용할 수 없습니다.");
+        setStatus(uiText("전체화면 전환을 사용할 수 없습니다."));
       }
     });
 
@@ -330,7 +339,7 @@
       const collapsed = routeGuidancePanel.dataset.collapsed === "true";
       routeGuidancePanel.dataset.collapsed = collapsed ? "false" : "true";
       routeGuidanceToggle.textContent = collapsed ? "−" : "+";
-      const label = collapsed ? "경로 안내 접기" : "경로 안내 펼치기";
+      const label = collapsed ? uiText("경로 안내 접기") : uiText("경로 안내 펼치기");
       routeGuidanceToggle.title = label;
       routeGuidanceToggle.setAttribute("aria-label", label);
     });
@@ -349,18 +358,18 @@
       }
       routeGuidancePanel.dataset.collapsed = "false";
       routeGuidanceToggle.textContent = "−";
-      routeGuidanceToggle.title = "경로 안내 접기";
-      routeGuidanceToggle.setAttribute("aria-label", "경로 안내 접기");
+      routeGuidanceToggle.title = uiText("경로 안내 접기");
+      routeGuidanceToggle.setAttribute("aria-label", uiText("경로 안내 접기"));
       activateRoutePanelTab("history");
       routeGuidancePanel.scrollIntoView({ block: "nearest" });
-      setStatus(routeHistory.length ? "경로 이력을 열었습니다." : "경로 이력을 확인하고 있습니다.");
+      setStatus(routeHistory.length ? uiText("경로 이력을 열었습니다.") : uiText("경로 이력을 확인하고 있습니다."));
     });
 
     routeAddWaypointButton.addEventListener("click", addWaypoint);
 
     routePrioritySelect.addEventListener("change", () => {
       const label = routePrioritySelect.options[routePrioritySelect.selectedIndex].text;
-      setStatus(`경로 유형: ${label}`);
+      setStatus(uiText`경로 유형: ${label}`);
     });
 
     routeAvoidToggle.addEventListener("click", () => {
@@ -383,7 +392,7 @@
         updateRouteAvoidSummary();
         updateRouteControls();
         const count = selectedRouteAvoidOptions().length;
-        setStatus(count ? `경로 회피 옵션 ${count}개 선택` : "경로 회피 옵션 없음");
+        setStatus(count ? uiText`경로 회피 옵션 ${count}개 선택` : uiText("경로 회피 옵션 없음"));
       });
     });
 
@@ -409,7 +418,7 @@
     bindRouteInput(
       routeOriginInput,
       () => "origin",
-      () => "출발지",
+      () => uiText("출발지"),
       (coordinate) => {
         routeOrigin = coordinate;
       }
@@ -418,7 +427,7 @@
     bindRouteInput(
       routeDestinationInput,
       () => "destination",
-      () => "도착지",
+      () => uiText("도착지"),
       (coordinate) => {
         routeDestination = coordinate;
       }
@@ -430,19 +439,19 @@
       searchResults.hidden = true;
       const coordinate = currentMapCoordinate();
       if (!coordinate) {
-        setStatus("현재 NAVER 지도 중심을 읽지 못했습니다.");
+        setStatus(uiText("현재 NAVER 지도 중심을 읽지 못했습니다."));
         return;
       }
       if (role === "origin") {
         routeOrigin = coordinate;
         routeOriginInput.value = formatCoordinate(coordinate);
         publishRoutePoint("origin", coordinate);
-        setStatus(`출발지: ${coordinate.lat.toFixed(6)}, ${coordinate.lon.toFixed(6)}`);
+        setStatus(uiText`출발지: ${coordinate.lat.toFixed(6)}, ${coordinate.lon.toFixed(6)}`);
       } else if (role === "destination") {
         routeDestination = coordinate;
         routeDestinationInput.value = formatCoordinate(coordinate);
         publishRoutePoint("destination", coordinate);
-        setStatus(`도착지: ${coordinate.lat.toFixed(6)}, ${coordinate.lon.toFixed(6)}`);
+        setStatus(uiText`도착지: ${coordinate.lat.toFixed(6)}, ${coordinate.lon.toFixed(6)}`);
       }
       updateRouteControls();
     };
@@ -463,7 +472,7 @@
       routeBusy = true;
       const generation = ++routeGeneration;
       updateRouteControls();
-      setStatus("출발지, 경유지, 도착지를 확인하고 있습니다...");
+      setStatus(uiText("출발지, 경유지, 도착지를 확인하고 있습니다..."));
 
       try {
         const locations = await Promise.all([
@@ -500,12 +509,12 @@
       }));
       setStatus(
         routeWaypoints.length
-          ? `경유지 ${routeWaypoints.length}개를 포함한 경로를 탐색하고 있습니다...`
-          : "Naver Directions 경로를 탐색하고 있습니다..."
+          ? uiText`경유지 ${routeWaypoints.length}개를 포함한 경로를 탐색하고 있습니다...`
+          : uiText("Naver Directions 경로를 탐색하고 있습니다...")
       );
       routeWatchdog = window.setTimeout(() => {
         if (generation !== routeGeneration || !routeBusy) return;
-        cancelRouteSearch("경로 응답을 받지 못했습니다. 연결을 확인한 뒤 다시 조회하세요.");
+        cancelRouteSearch(uiText("경로 응답을 받지 못했습니다. 연결을 확인한 뒤 다시 조회하세요."));
       }, 35000);
       qgisBridge.requestRoute(
         routeOrigin.lon,
@@ -515,13 +524,13 @@
         routePrioritySelect.value,
         JSON.stringify(waypointPayload),
         JSON.stringify(selectedRouteAvoidOptions()),
-        JSON.stringify(selectedRouteVehicleOptions()),
+        JSON.stringify({...selectedRouteVehicleOptions(), language: mapLanguage}),
         routeOriginInput.value.trim(),
         routeDestinationInput.value.trim()
       );
     });
 
-    function cancelRouteSearch(message = "경로 탐색을 취소했습니다.") {
+    function cancelRouteSearch(message = uiText("경로 탐색을 취소했습니다.")) {
       routeGeneration += 1;
       searchRequestId += 1;
       routeBusy = false;
@@ -535,5 +544,5 @@
     routeResetButton.addEventListener("click", () => {
       clearRouteInputs(true);
       clearRoutePath();
-      setStatus("경로 지점을 초기화했습니다.");
+      setStatus(uiText("경로 지점을 초기화했습니다."));
     });

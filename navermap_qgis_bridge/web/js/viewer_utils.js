@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
     function setStatus(message) {
-      document.getElementById("status").textContent = message;
+      document.getElementById("status").textContent = translateViewerStatus(message);
     }
 
     window.setReverseSyncDiagnostic = function(message) {
@@ -45,5 +45,5 @@
       } catch (_) {
         // Missing metadata must not interrupt map/roadview synchronization.
       }
-      label.textContent = photoDate ? `촬영일: ${photoDate}` : "촬영일 정보 없음";
+      label.textContent = photoDate ? uiText`촬영일: ${photoDate}` : uiText("촬영일 정보 없음");
     }

@@ -52,7 +52,8 @@ def history_fields(kind):
 def history_memory_uri(kind):
     geometry = "LineString" if kind == "route" else "Point"
     return geometry + "?crs=EPSG:4326" + "".join(
-        f"&field={name}:{memory_type}" for name, memory_type, *_ in history_fields(kind))
+        f"&field={name}:{'double(20,10)' if memory_type == 'double' else memory_type}"
+        for name, memory_type, *_ in history_fields(kind))
 
 
 def history_shapefile_fields(kind):

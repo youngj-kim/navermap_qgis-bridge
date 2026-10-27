@@ -32,9 +32,9 @@ def local_search_request(query, client_id, client_secret):
 
 
 def route_request(origin, destination, priority, waypoints, avoid_options,
-                  car_type, car_fuel, client_id, client_secret):
+                  car_type, car_fuel, client_id, client_secret, language="ko"):
     return _request(ROUTE_ENDPOINT, route_parameters(
-        origin, destination, priority, waypoints, avoid_options, car_type, car_fuel
+        origin, destination, priority, waypoints, avoid_options, car_type, car_fuel, language
     ), [
         (b"x-ncp-apigw-api-key-id", validated_credential(client_id).encode("ascii")),
         (b"x-ncp-apigw-api-key", validated_credential(client_secret).encode("ascii")),

@@ -14,6 +14,7 @@ COMMANDS = {"move-center", "zoom-view", "roadview-state", "request-route", "canc
             "route-point", "clear-route-point", "clear-route-points",
             "request-local-search", "select-route-guidance", "select-route-history",
             "load-route-history", "delete-route-history", "export-route-history",
+            "import-route-history", "delete-route-histories",
             "refresh-route-history"}
 
 

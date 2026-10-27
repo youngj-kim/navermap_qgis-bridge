@@ -40,7 +40,7 @@
         const max = maximum == null ? 21 : Number(maximum);
         const zoom = Math.max(Number.isFinite(min) ? min : 0, Math.min(Number.isFinite(max) ? max : 21, target));
         if (zoom !== map.getZoom()) map.setZoom(zoom, false);
-      } catch (_error) { setStatus("지도 확대 비율을 맞추지 못했습니다."); }
+      } catch (_error) { setStatus(uiText("지도 확대 비율을 맞추지 못했습니다.")); }
       mapViewSnapshot = {lon, lat, zoom: map.getZoom()};
     };
 
@@ -64,8 +64,8 @@
 
       const origin = payload.origin || {};
       const destination = payload.destination || {};
-      routeOriginInput.value = routeInputLabel(origin, "출발지");
-      routeDestinationInput.value = routeInputLabel(destination, "도착지");
+      routeOriginInput.value = routeInputLabel(origin, uiText("출발지"));
+      routeDestinationInput.value = routeInputLabel(destination, uiText("도착지"));
       routeOrigin = applyLoadedRoutePoint("origin", origin);
       routeDestination = applyLoadedRoutePoint("destination", destination);
 
@@ -77,7 +77,7 @@
         const waypoint = routeWaypoints[routeWaypoints.length - 1];
         waypoint.input.value = routeInputLabel(
           waypointPayload,
-          `경유지 ${routeWaypoints.length}`
+          uiText`경유지 ${routeWaypoints.length}`
         );
         waypoint.coordinate = applyLoadedRoutePoint(
           waypointPointId(waypoint),
@@ -114,8 +114,8 @@
         moveViewer(routeOrigin.lon, routeOrigin.lat);
       }
       setStatus(avoid.length > 1
-        ? "이전 이력의 복수 회피 설정은 당시 요청에 적용된 무료 우선으로 불러왔습니다."
-        : "선택한 이력을 경로 입력창으로 불러왔습니다.");
+        ? uiText("이전 이력의 복수 회피 설정은 당시 요청에 적용된 무료 우선으로 불러왔습니다.")
+        : uiText("선택한 이력을 경로 입력창으로 불러왔습니다."));
     };
 
     updateRouteVehicleSummary();

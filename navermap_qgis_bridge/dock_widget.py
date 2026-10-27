@@ -93,6 +93,8 @@ class NaverMapDockWidget(QDockWidget):
     routeHistorySelected = pyqtSignal(str)
     routeHistoryLoadRequested = pyqtSignal(str)
     routeHistoryDeleteRequested = pyqtSignal(str)
+    routeHistoryImportRequested = pyqtSignal()
+    routeHistoryBatchDeleteRequested = pyqtSignal(str)
     routeHistoryExportRequested = pyqtSignal(str)
     routeHistoryRefreshRequested = pyqtSignal()
     localSearchRequested = pyqtSignal(str, str)
@@ -273,6 +275,8 @@ class NaverMapDockWidget(QDockWidget):
         self.web_bridge.routeHistoryLoadRequested.connect(
             self.routeHistoryLoadRequested.emit
         )
+        self.web_bridge.routeHistoryImportRequested.connect(self.routeHistoryImportRequested.emit)
+        self.web_bridge.routeHistoryBatchDeleteRequested.connect(self.routeHistoryBatchDeleteRequested.emit)
         self.web_bridge.routeHistoryDeleteRequested.connect(
             self.routeHistoryDeleteRequested.emit
         )
@@ -286,6 +290,7 @@ class NaverMapDockWidget(QDockWidget):
             self.localSearchRequested.emit
         )
         self.web_bridge.fullScreenRequested.connect(self.toggle_full_screen)
+        self.web_bridge.viewerReloadRequested.connect(self.reload_viewer)
 
         self.web_channel = QWebChannel(self.web_view.page())
         self.web_channel.registerObject("qgisBridge", self.web_bridge)

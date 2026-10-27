@@ -543,6 +543,8 @@ class NaverMapQgisBridgePlugin(
         self.dock.routeGuidanceSelected.connect(self._focus_route_guidance)
         self.dock.routeHistorySelected.connect(self._focus_route_history)
         self.dock.routeHistoryLoadRequested.connect(self._load_route_history)
+        self.dock.routeHistoryImportRequested.connect(self._load_route_history_file)
+        self.dock.routeHistoryBatchDeleteRequested.connect(self._delete_route_histories)
         self.dock.routeHistoryDeleteRequested.connect(self._delete_route_history)
         self.dock.routeHistoryExportRequested.connect(self._export_single_route_history)
         self.dock.routeHistoryRefreshRequested.connect(
@@ -678,6 +680,10 @@ class NaverMapQgisBridgePlugin(
                         self._focus_route_history(str(payload.get("history_id", "")))
                     elif event_type == "load_route_history":
                         self._load_route_history(str(payload.get("history_id", "")))
+                    elif event_type == "import_route_history":
+                        self._load_route_history_file()
+                    elif event_type == "delete_route_histories":
+                        self._delete_route_histories(str(payload.get("history_ids_json", "")))
                     elif event_type == "delete_route_history":
                         self._delete_route_history(str(payload.get("history_id", "")))
                     elif event_type == "export_route_history":

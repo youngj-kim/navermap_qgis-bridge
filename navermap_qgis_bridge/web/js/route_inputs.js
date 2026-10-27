@@ -47,18 +47,19 @@
         return Promise.resolve(coordinate);
       }
       if (!query) {
-        return Promise.reject(new Error("입력값을 좌표나 장소로 해석할 수 없습니다."));
+        return Promise.reject(new Error(uiText("입력값을 좌표나 장소로 해석할 수 없습니다.")));
       }
 
       return geocodeAddress(query).then((results) => {
         if (!results.length) {
-          throw new Error(`위치를 찾지 못했습니다: ${query}`);
+          throw new Error(uiText`위치를 찾지 못했습니다: ${query}`);
         }
         return results[0];
       });
     }
 
     function updateRouteControls() {
+      updateHistorySelectionControls();
       routeCancelButton.disabled = !routeBusy;
       const hasOrigin = Boolean(routeOriginInput.value.trim());
       const hasDestination = Boolean(routeDestinationInput.value.trim());
@@ -117,7 +118,7 @@
         qgisBridge.moveQgisCenter(coordinate.lon, coordinate.lat);
       }
       setStatus(
-        `${label} 지정: ${coordinate.lat.toFixed(6)}, ${coordinate.lon.toFixed(6)}`
+        uiText`${label} 지정: ${coordinate.lat.toFixed(6)}, ${coordinate.lon.toFixed(6)}`
       );
       updateRouteControls();
     }
@@ -207,15 +208,15 @@
 
     function updateWaypointLabels() {
       routeWaypoints.forEach((waypoint, index) => {
-        waypoint.label.textContent = `경유 ${index + 1}`;
-        waypoint.input.setAttribute("aria-label", `경유지 ${index + 1}`);
-        waypoint.currentButton.title = `현재 지도 중심을 경유지 ${index + 1}로 사용`;
-        waypoint.removeButton.title = `경유지 ${index + 1} 삭제`;
-        waypoint.removeButton.setAttribute("aria-label", `경유지 ${index + 1} 삭제`);
-        waypoint.upButton.title = `경유지 ${index + 1} 위로 이동`;
-        waypoint.upButton.setAttribute("aria-label", `경유지 ${index + 1} 위로 이동`);
-        waypoint.downButton.title = `경유지 ${index + 1} 아래로 이동`;
-        waypoint.downButton.setAttribute("aria-label", `경유지 ${index + 1} 아래로 이동`);
+        waypoint.label.textContent = uiText`경유 ${index + 1}`;
+        waypoint.input.setAttribute("aria-label", uiText`경유지 ${index + 1}`);
+        waypoint.currentButton.title = uiText`현재 지도 중심을 경유지 ${index + 1}로 사용`;
+        waypoint.removeButton.title = uiText`경유지 ${index + 1} 삭제`;
+        waypoint.removeButton.setAttribute("aria-label", uiText`경유지 ${index + 1} 삭제`);
+        waypoint.upButton.title = uiText`경유지 ${index + 1} 위로 이동`;
+        waypoint.upButton.setAttribute("aria-label", uiText`경유지 ${index + 1} 위로 이동`);
+        waypoint.downButton.title = uiText`경유지 ${index + 1} 아래로 이동`;
+        waypoint.downButton.setAttribute("aria-label", uiText`경유지 ${index + 1} 아래로 이동`);
       });
     }
 
@@ -236,7 +237,7 @@
       );
       updateWaypointLabels();
       updateRouteControls();
-      setStatus(`경유지 ${targetIndex + 1} 순서로 이동했습니다.`);
+      setStatus(uiText`경유지 ${targetIndex + 1} 순서로 이동했습니다.`);
     }
 
     function swapRouteEndpoints() {
@@ -256,7 +257,7 @@
         publishRoutePoint("destination", routeDestination);
       }
       updateRouteControls();
-      setStatus("출발지와 도착지를 바꿨습니다.");
+      setStatus(uiText("출발지와 도착지를 바꿨습니다."));
     }
 
     function removeWaypoint(waypoint) {
@@ -274,12 +275,12 @@
       waypoint.row.remove();
       updateWaypointLabels();
       updateRouteControls();
-      setStatus("경유지를 삭제했습니다.");
+      setStatus(uiText("경유지를 삭제했습니다."));
     }
 
     function addWaypoint() {
       if (routeWaypoints.length >= maxRouteWaypoints) {
-        setStatus(`경유지는 최대 ${maxRouteWaypoints}개까지 추가할 수 있습니다.`);
+        setStatus(uiText`경유지는 최대 ${maxRouteWaypoints}개까지 추가할 수 있습니다.`);
         return;
       }
 
@@ -292,13 +293,13 @@
       const input = document.createElement("input");
       input.className = "route-input";
       input.type = "text";
-        input.placeholder = "장소, 주소 또는 경도,위도";
+        input.placeholder = uiText("장소, 주소 또는 경도,위도");
       input.autocomplete = "off";
 
       const currentButton = document.createElement("button");
       currentButton.className = "route-current";
       currentButton.type = "button";
-      currentButton.textContent = "현재 위치";
+      currentButton.textContent = uiText("현재 위치");
 
       const removeButton = document.createElement("button");
       removeButton.className = "route-waypoint-remove";
@@ -331,7 +332,7 @@
       bindRouteInput(
         input,
         () => waypointPointId(waypoint),
-        () => `경유지 ${routeWaypoints.indexOf(waypoint) + 1}`,
+        () => uiText`경유지 ${routeWaypoints.indexOf(waypoint) + 1}`,
         (coordinate) => {
           waypoint.coordinate = coordinate;
         }
@@ -347,7 +348,7 @@
           publishRoutePoint(waypointPointId(waypoint), waypoint.coordinate);
           const index = routeWaypoints.indexOf(waypoint) + 1;
           setStatus(
-            `경유지 ${index}: ${waypoint.coordinate.lat.toFixed(6)}, ` +
+            uiText`경유지 ${index}: ${waypoint.coordinate.lat.toFixed(6)}, ` +
             waypoint.coordinate.lon.toFixed(6)
           );
         }
@@ -365,7 +366,7 @@
       updateWaypointLabels();
       updateRouteControls();
       input.focus();
-      setStatus(`${routeWaypoints.length}번째 경유지를 추가했습니다.`);
+      setStatus(uiText`${routeWaypoints.length}번째 경유지를 추가했습니다.`);
     }
 
     function clearRouteInputs(resetOptions = true) {

@@ -33,7 +33,7 @@
             routeGuidance = [];
             clearRoutePath();
             updateRoutePanelVisibility();
-            setStatus("경로 안내 목록을 표시하지 못했습니다.");
+            setStatus(uiText("경로 안내 목록을 표시하지 못했습니다."));
           }
         });
       }
@@ -44,7 +44,7 @@
           } catch (error) {
             routeHistory = [];
             updateRoutePanelVisibility();
-            setStatus("경로 이력 목록을 표시하지 못했습니다.");
+            setStatus(uiText("경로 이력 목록을 표시하지 못했습니다."));
           }
         });
       }
@@ -53,13 +53,14 @@
           try {
             window.loadRouteHistoryInput(JSON.parse(payloadJson));
           } catch (error) {
-            setStatus("경로 이력을 입력창으로 불러오지 못했습니다.");
+            setStatus(uiText("경로 이력을 입력창으로 불러오지 못했습니다."));
           }
         });
       }
     }
 
     window.resetViewerProject = function resetViewerProject() {
+      mapLanguageState = null;
       clearRouteInputs(true);
       pendingCenter = null;
       pendingView = null;
@@ -72,13 +73,13 @@
         window.clearTimeout(timer);
       }
       mapSyncTimer = roadviewSyncTimer = roadviewStateTimer = null;
-      localSearchRequests.forEach(pending => pending.reject(new Error("프로젝트가 전환되었습니다.")));
+      localSearchRequests.forEach(pending => pending.reject(new Error(uiText("프로젝트가 전환되었습니다."))));
       localSearchRequests.clear();
       searchSubmit.disabled = !map;
       searchResults.textContent = "";
       mapDragActive = false;
       updateRoutePanelVisibility();
-      setStatus("프로젝트가 전환되어 현재 경로를 초기화했습니다. 세션 이력은 유지됩니다.");
+      setStatus(uiText("프로젝트가 전환되어 현재 경로를 초기화했습니다. 세션 이력은 유지됩니다."));
     };
 
     window.receiveLocalSearchResults = function receiveLocalSearchResults(payloadJson) {
@@ -88,7 +89,7 @@
           ? JSON.parse(payloadJson)
           : (payloadJson || {});
       } catch (_error) {
-        setStatus("POI 검색 응답을 해석하지 못했습니다.");
+        setStatus(uiText("POI 검색 응답을 해석하지 못했습니다."));
         return;
       }
       const requestId = String(payload.request_id || "");
@@ -100,7 +101,7 @@
       if (payload.success) {
         pending.resolve(Array.isArray(payload.results) ? payload.results : []);
       } else {
-        pending.reject(new Error(payload.message || "POI 검색에 실패했습니다."));
+        pending.reject(new Error(payload.message || uiText("POI 검색에 실패했습니다.")));
       }
     };
 
@@ -112,7 +113,7 @@
         bridgeDiagnostic.hidden = true;
         connectQgisBridgeSignals();
         updateRouteControls();
-        setStatus("외부 브라우저 연동 모드로 QGIS와 연결했습니다.");
+        setStatus(uiText("외부 브라우저 연동 모드로 QGIS와 연결했습니다."));
         return;
       }
 
@@ -125,7 +126,7 @@
         if (!window.qt) missing.push("window.qt");
         if (window.qt && !window.qt.webChannelTransport) missing.push("webChannelTransport");
         if (!window.QWebChannel) missing.push("QWebChannel");
-        bridgeDiagnostic.textContent = `QGIS bridge 준비 중: ${missing.join(", ")}`;
+        bridgeDiagnostic.textContent = uiText`QGIS bridge 준비 중: ${missing.join(", ")}`;
         bridgeDiagnostic.hidden = false;
         window.clearTimeout(qgisBridgeRetryTimer);
         qgisBridgeRetryTimer = window.setTimeout(initQgisBridge, 100);
@@ -133,7 +134,7 @@
       }
 
       qgisBridgeInitializing = true;
-      bridgeDiagnostic.textContent = "QGIS bridge 연결 중...";
+      bridgeDiagnostic.textContent = uiText("QGIS bridge 연결 중...");
       bridgeDiagnostic.hidden = false;
       window.clearTimeout(qgisBridgeRetryTimer);
       qgisBridgeRetryTimer = window.setTimeout(() => {
@@ -141,7 +142,7 @@
           return;
         }
         qgisBridgeInitializing = false;
-        bridgeDiagnostic.textContent = "QGIS bridge 연결을 다시 시도하고 있습니다...";
+        bridgeDiagnostic.textContent = uiText("QGIS bridge 연결을 다시 시도하고 있습니다...");
         initQgisBridge();
       }, 1500);
       new QWebChannel(window.qt.webChannelTransport, (channel) => {

@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 """Checked memory-provider mutations and validation of imported history pairs."""
 from contextlib import contextmanager
+from functools import wraps
 import json
 import math
 
@@ -84,7 +85,10 @@ def validate_import_pair(routes, guidance, value):
             if not valid_coordinate(lon, lat):
                 raise ValueError("안내 좌표 범위 오류")
             point = feature.geometry().asPoint()
-            if not math.isclose(float(lon), point.x(), abs_tol=1e-7) or not math.isclose(float(lat), point.y(), abs_tol=1e-7):
+            # Older memory double fields rounded attributes to five decimals,
+            # while the geometry retained the original API coordinates.
+            # Allow half that decimal unit, with a small floating-point margin.
+            if not math.isclose(float(lon), point.x(), rel_tol=0, abs_tol=5.000001e-6) or not math.isclose(float(lat), point.y(), rel_tol=0, abs_tol=5.000001e-6):
                 raise ValueError("안내 속성과 지오메트리 좌표 불일치")
             for name, short in (("distance_m", "dist_m"), ("duration_s", "dur_s"),
                                 ("cum_distance_m", "cum_dist"), ("cum_duration_s", "cum_dur"), ("road_index", "road_idx")):
@@ -102,3 +106,17 @@ def valid_coordinate(lon, lat):
         return math.isfinite(float(lon)) and math.isfinite(float(lat)) and -180 <= float(lon) <= 180 and -90 <= float(lat) <= 90
     except (ValueError, TypeError, OverflowError):
         return False
+
+
+def history_dialog_operation(method):
+    """Prevent nested file/delete dialogs while Qt processes modal events."""
+    @wraps(method)
+    def guarded(self, *args, **kwargs):
+        if getattr(self, "_history_dialog_active", False) or self.project_transitioning:
+            return
+        self._history_dialog_active = True
+        try:
+            return method(self, *args, **kwargs)
+        finally:
+            self._history_dialog_active = False
+    return guarded

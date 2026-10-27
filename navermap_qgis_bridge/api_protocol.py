@@ -28,7 +28,7 @@ def local_search_parameters(query):
 
 
 def route_parameters(origin, destination, priority, waypoints, avoid_options,
-                     car_type, car_fuel):
+                     car_type, car_fuel, language="ko"):
     parameters = [
         ("start", f"{origin[0]:.8f},{origin[1]:.8f}"),
         ("goal", f"{destination[0]:.8f},{destination[1]:.8f}"),
@@ -38,7 +38,8 @@ def route_parameters(origin, destination, priority, waypoints, avoid_options,
             f'{point["lon"]:.8f},{point["lat"]:.8f}' for point in waypoints)))
     parameters.extend([
         ("option", route_option(priority, avoid_options)),
-        ("cartype", str(car_type)), ("fueltype", car_fuel), ("lang", "ko"),
+        ("cartype", str(car_type)), ("fueltype", car_fuel),
+        ("lang", "en" if language == "en" else "ko"),
     ])
     return parameters
 

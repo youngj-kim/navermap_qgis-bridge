@@ -73,7 +73,7 @@ const { chromium } = require('playwright');
         }
       }
     }
-    // All three toolbar controls stay on one row even in narrow floating docks.
+    // Toolbar and route actions stay on one row even in narrow floating docks.
     for (const width of [280,360,540,700,1100]) {
       await page.setViewportSize({width,height:900});
       for (const collapsed of [true,false]) {
@@ -83,10 +83,19 @@ const { chromium } = require('playwright');
         }, collapsed);
         const sameRow=await page.evaluate(()=>{
           const toolbar=document.getElementById('viewer-toolbar').getBoundingClientRect();
-          const controls=['explorer-toggle','viewer-layout','fullscreen-toggle'].map(id=>document.getElementById(id).getBoundingClientRect());
+          const controls=['explorer-toggle','viewer-layout','map-language-toggle','fullscreen-toggle'].map(id=>document.getElementById(id).getBoundingClientRect());
           return controls.every(r=>Math.abs(r.y-controls[0].y)<1 && r.width>0 && r.x>=toolbar.x-1 && r.right<=toolbar.right+1);
         });
         assert.ok(sameRow, `toolbar wrapped or overflowed at ${width}px, collapsed=${collapsed}`);
+        if (!collapsed) {
+          const actionsFit = await page.evaluate(() => {
+            const container = document.getElementById('route-actions').getBoundingClientRect();
+            const buttons = Array.from(document.querySelectorAll('#route-actions button')).map(button=>button.getBoundingClientRect());
+            return buttons.length === 5 && buttons.every(rect =>
+              Math.abs(rect.y-buttons[0].y)<1 && rect.width>0 && rect.x>=container.x-1 && rect.right<=container.right+1);
+          });
+          assert.ok(actionsFit, `route actions wrapped or overflowed at ${width}px`);
+        }
       }
     }
     await page.setViewportSize({width:1500,height:950});

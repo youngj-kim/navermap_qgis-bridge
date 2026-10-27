@@ -38,6 +38,8 @@ const assert = require('assert/strict');
     ['loadRouteHistory', ['test'], '/api/load-route-history', {history_id:'test'}],
     ['deleteRouteHistory', ['test'], '/api/delete-route-history', {history_id:'test'}],
     ['exportRouteHistory', ['test'], '/api/export-route-history', {history_id:'test'}],
+    ['importRouteHistory', [], '/api/import-route-history', {}],
+    ['deleteRouteHistories', ['["a","b"]'], '/api/delete-route-histories', {history_ids_json:'["a","b"]'}],
     ['refreshRouteHistory', [], '/api/refresh-route-history', {}],
     ['requestLocalSearch', ['test','예시'], '/api/request-local-search', {request_id:'test',query:'예시'}],
     ['requestRoute', [127,37,128,38,'TIME','[]','[]','{}','origin','destination'], '/api/request-route',
