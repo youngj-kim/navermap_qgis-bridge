@@ -22,12 +22,11 @@ except ImportError:
 WEB_RUNTIME_IMPORT_ERRORS = []
 
 
-def _record_import_error(component, primary_error, fallback_error):
+def _record_import_error(component, error):
     WEB_RUNTIME_IMPORT_ERRORS.append(
         {
             "component": component,
-            "primary_error": str(primary_error),
-            "fallback_error": str(fallback_error),
+            "primary_error": str(error),
         }
     )
 
@@ -35,28 +34,14 @@ def _record_import_error(component, primary_error, fallback_error):
 try:
     from qgis.PyQt.QtWebChannel import QWebChannel
 except ImportError as primary_error:
-    try:
-        from PyQt5.QtWebChannel import QWebChannel
-    except ImportError as fallback_error:
-        QWebChannel = None
-        _record_import_error(
-            "Qt WebChannel",
-            primary_error,
-            fallback_error,
-        )
+    QWebChannel = None
+    _record_import_error("Qt WebChannel", primary_error)
 
 try:
     from qgis.PyQt.QtWebEngineWidgets import QWebEngineView
 except ImportError as primary_error:
-    try:
-        from PyQt5.QtWebEngineWidgets import QWebEngineView
-    except ImportError as fallback_error:
-        QWebEngineView = None
-        _record_import_error(
-            "Qt WebEngine",
-            primary_error,
-            fallback_error,
-        )
+    QWebEngineView = None
+    _record_import_error("Qt WebEngine", primary_error)
 
 from .settings import naver_javascript_key, naver_map_base_url
 from .viewer_document import build_viewer_html
@@ -73,7 +58,7 @@ def web_runtime_diagnostic():
         "QGIS 캔버스를 이동하면 외부 Naver 지도와 거리뷰가 따라 이동하며, 외부 Naver 지도나 거리뷰에서 이동한 위치도 QGIS에 반영됩니다.",
     ]
 
-    lines.extend(f"{item['component']}: {item['primary_error']}; {item['fallback_error']}" for item in WEB_RUNTIME_IMPORT_ERRORS)
+    lines.extend(f"{item['component']}: {item['primary_error']}" for item in WEB_RUNTIME_IMPORT_ERRORS)
     return "\n".join(lines)
 
 

@@ -49,10 +49,10 @@ python -B tests/run_checks.py --group qgis --qgis-launcher 'C:\Program Files\QGI
 ## 설치 ZIP 생성
 
 ```powershell
-python -B tools/build_plugin.py --release
+python -B tools/build_plugin.py --experimental
 ```
 
-버전은 `metadata.txt`에서 읽으며 `--release`는 label 없는 배포 파일명을 사용합니다. 테스트 패키지는 `--label YOUR_TEST_LABEL`로 구분합니다. 결과는 `dist/navermap_qgis_bridge-1.0.zip`입니다. 같은 파일을 덮어쓰지 않으므로 재빌드 시에는 다른 테스트 label을 사용합니다.
+버전은 `metadata.txt`에서 읽으며 `--experimental`은 label 없는 시험 배포 파일명을 사용합니다. 정식 배포에는 `experimental=False`와 `--release`를 사용합니다. 테스트 패키지는 `--label YOUR_TEST_LABEL`로 구분합니다. 결과는 `dist/navermap_qgis_bridge-0.99.zip`입니다. 같은 파일을 덮어쓰지 않으므로 재빌드 시에는 다른 테스트 label을 사용합니다.
 
 생성기는 단일 플러그인 루트, Python 문법·내부 import·웹 리소스·ZIP CRC를 검사합니다. 한글·영문 설치 README, 사용·설치·문제 해결 가이드, 변경 기록과 수동 체크리스트를 포함하며 개발 테스트·빌드 도구·로컬 설정·캐시는 제외합니다. 설치용 README의 문서 링크는 ZIP 안에서 열려야 합니다.
 
@@ -61,3 +61,19 @@ python -B tools/build_plugin.py --release
 QGIS 3.34 이상과 4.x, 외부 브라우저와 내장 뷰어를 함께 고려합니다. 실제 실행하지 못한 항목을 통과로 표시하지 않습니다. API 키·`settings.json`·생성된 인증 포함 HTML을 커밋하지 않습니다. 라이선스는 GPL-2.0-or-later로 유지합니다.
 
 릴리스 전에는 [배포 체크리스트](release-checklist.md)를 따르고, 변경 내용은 [CHANGELOG.md](../CHANGELOG.md), 상세 실행 결과는 [TESTING.md](../TESTING.md)에 기록합니다. 과거 설계 근거는 [리팩토링 기록](../REFACTORING.md)과 [기록 안내](archive/README.md)에 남깁니다.
+
+## 저장소 보안 검사 재현
+
+업로드 전에 설치 ZIP에 포함되는 플러그인 폴더를 Bandit·detect-secrets로 검사합니다. 이 도구는 개발용이며 플러그인 실행 의존성에 추가하지 않습니다.
+
+```powershell
+python -m pip install --target dist/security-tools bandit detect-secrets flake8
+$env:PYTHONPATH = "$PWD/dist/security-tools"
+python -m bandit -r navermap_qgis_bridge
+python -m detect_secrets scan --all-files navermap_qgis_bridge
+python -m flake8 navermap_qgis_bridge --select E731,F821,F822,F823
+```
+
+0.99.1은 저장소가 보고한 Bandit 3건·비밀정보 탐지 7건 및 Qt6 4건을 대조해 수정했습니다. 설정 이름은 실제 키가 아니며 Python 상수명만 정리하고 실제 저장 키/환경변수는 유지합니다. GPX는 XML을 파싱하지 않고 생성만 하므로 해당 import의 B405 한 줄에 검토 근거를 남겼습니다. 회귀 검사는 XML 생성 API만 사용하도록 제한합니다. 전체 규칙·경로 제외나 baseline은 추가하지 않습니다.
+
+로컬 결과는 서버 승인 보장이 아닙니다. [공식 보안 검사 안내](https://plugins.qgis.org/docs/security-scanning/tools)와 실제 새 버전의 Security/Qt6 결과를 함께 확인합니다.

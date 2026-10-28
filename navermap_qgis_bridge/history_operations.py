@@ -7,6 +7,7 @@ import math
 
 from qgis.core import QgsFeature, QgsCoordinateReferenceSystem, QgsWkbTypes
 from .data_transforms import guidance_category
+from .compat import WKB_LINESTRING, WKB_POINT
 
 
 def checked_add(layer, features):
@@ -38,7 +39,7 @@ def normalize_guidance_feature(feature):
 
 def validate_import_pair(routes, guidance, value):
     """Validate the complete source before mutating either destination layer."""
-    for layer, geometry in ((routes, QgsWkbTypes.LineString), (guidance, QgsWkbTypes.Point)):
+    for layer, geometry in ((routes, WKB_LINESTRING), (guidance, WKB_POINT)):
         if layer.crs() != QgsCoordinateReferenceSystem("EPSG:4326"):
             raise RuntimeError("이력 좌표계는 EPSG:4326이어야 합니다.")
         if QgsWkbTypes.flatType(layer.wkbType()) != geometry:
@@ -53,7 +54,8 @@ def validate_import_pair(routes, guidance, value):
     route_ids, expected, counts, sequences = set(), {}, {}, set()
     try:
         for feature in routes.getFeatures():
-            get = lambda name, short: value(feature, set(routes.fields().names()), name, short)
+            def get(name, short):
+                return value(feature, set(routes.fields().names()), name, short)
             identifier = str(get("history_id", "hist_id") or "")
             if not identifier or identifier in route_ids:
                 raise ValueError("경로 이력 ID 누락 또는 중복")
@@ -74,7 +76,8 @@ def validate_import_pair(routes, guidance, value):
                 if int(get(name, short)) < 0:
                     raise ValueError("거리·시간 범위 오류")
         for feature in guidance.getFeatures():
-            get = lambda name, short: value(feature, set(guidance.fields().names()), name, short)
+            def get(name, short):
+                return value(feature, set(guidance.fields().names()), name, short)
             identifier = str(get("history_id", "hist_id") or "")
             sequence = int(get("sequence", "seq"))
             if identifier not in route_ids or sequence < 1 or (identifier, sequence) in sequences:

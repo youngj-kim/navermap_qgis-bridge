@@ -1,5 +1,23 @@
 # 테스트 절차
 
+## 2026-10-28 0.99 저장소 차단 수정 및 0.99.1 재제출 준비
+
+- 로그인된 저장소의 0.99 Security/Qt6 탭을 직접 확인했다. Bandit 3건(B405 XML import, B105 설정 이름 2건), detect-secrets 7건(설정 이름·문서 placeholder·예시 JSON), Qt6 4건(PyQt5 import 2개, 구형 형상 enum 2개), E731 2건이었다. 실제 운영 키 유출을 확인한 결과는 아니다.
+- 설정 Python 상수명을 REST_KEY 방식으로 정리했으며 실제 환경변수·QGIS 저장 키는 유지한다. legacy JSON 예시에는 실제 읽는 Client ID만 남겼고 문서 Client Secret 예시는 실행 시 입력한다. 비밀정보 검사를 전체 제외하는 config나 baseline은 추가하지 않았다.
+- GPX ElementTree는 생성 전용으로 외부 XML을 파싱하지 않는다. import 한 줄의 B405 오탐 사유를 명시하고 XML 생성 API만 허용하는 AST 회귀 검사를 추가했다. import 전체 보안 규칙을 끄지 않았다.
+- qgis.PyQt가 제공하는 웹 모듈만 사용하고 미설치 시 외부 브라우저로 전환한다. 외부 모드 진단에서 제거된 fallback 키를 참조하지 않도록 수정했다. 형상 enum은 compat.py로 격리하고 E731을 def로 변경했다.
+- 통과: Python 74개·웹 9종. QGIS 3.44.14/4.2.2에서 각각 전체 오프라인 7종, 총 14개 명령. 기존 인증 설정, XML export-only, 웹 모듈 부재 진단과 직접 PyQt import 금지 회귀를 포함했다.
+- 통과: 실제 업로드 ZIP을 별도 폴더에 압축 해제한 뒤 Bandit 1.9.4 결과 0건, detect-secrets 1.5.0 결과 0건. Flake8 7.4.1의 E731/F821/F822/F823 검사 0건. 검사 도구와 의존성은 dist/security-tools에 격리하며 ZIP에 포함하지 않는다.
+- 통과: QGIS 공식 pyqt5_to_pyqt6.py를 QGIS 4.2.2에서 --dry_run으로 실행해 진단 0건. 스크립트 출처는 https://github.com/qgis/QGIS/blob/master/scripts/pyqt5_to_pyqt6/pyqt5_to_pyqt6.py 이며 소스를 수정하는 자동 변환은 수행하지 않았다.
+- 패키지: navermap_qgis_bridge-0.99.1.zip, version=0.99.1, experimental=True. 75개 파일·단일 루트·원본 일치·CRC·문서 링크·한/영 체크리스트 원문·설정/바이너리 제외와 SHA256을 확인했다.
+- 미수행: 정확한 QGIS 3.34, 이번 수정본의 실제 NAVER API·내장/외부 화면 전체 수동 검증, 별도 프로필 설치 및 저장소 0.99.1 업로드·재검사·승인. 로컬 스캐너와 Qt6 결과를 서버 승인으로 간주하지 않는다.
+
+## 2026-10-27 0.99 실험적 시험 배포로 전환
+
+- 사용자의 요청으로 미출시 1.0 준비안 대신 version=0.99, experimental=True의 시험 배포를 준비했다. 기존 기능·QGIS 지원 범위는 유지하며 문제 확인·보완 뒤 1.0 정식 배포를 계획한다. 한·영 현재 문서와 체크리스트를 0.99에 맞추고 미출시 1.0 기록은 구분해 보존한다.
+- 통과: Python 70개, navermap_qgis_bridge-0.99.zip의 버전·실험적 표시·changelog·75개 파일·단일 루트·원본 일치·CRC·크기 제한·문서 링크·체크리스트 원문·키 유사 리터럴·설정 제외 및 SHA256. --experimental 상호 배제·정식 --release 거부·ZIP 덮어쓰기 거부를 확인했다.
+- 기능 변경이 없어 직전 QGIS 3.44.14/4.2.2 전체 오프라인 14개 명령과 웹 9종 결과를 참고하며 이번 메타데이터 전환 뒤 재실행한 것으로 기록하지 않는다. 실제 QGIS 신규 설치·실제 API 전체 매트릭스·정확한 QGIS 3.34 및 저장소 업로드·심사는 미수행이다.
+
 ## 2026-10-27 1.0 QGIS 저장소 업데이트 준비
 
 - 메타데이터 버전 1.0, experimental=False, 영문 소개·changelog·태그 및 기존 QGIS 3.34~4.99 범위를 확인했다. 0.2.0 사용자 확인본에서 기능 변경 없이 한·영 문서와 배포 메타데이터를 맞췄다.

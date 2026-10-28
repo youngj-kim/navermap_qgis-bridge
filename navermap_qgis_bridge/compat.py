@@ -1,4 +1,4 @@
-from qgis.core import Qgis, QgsMapLayer, QgsVectorFileWriter
+from qgis.core import Qgis, QgsMapLayer, QgsVectorFileWriter, QgsWkbTypes
 from qgis.PyQt.QtWidgets import QMessageBox
 
 
@@ -17,6 +17,10 @@ MSG_CRITICAL = _enum_value(_message_level, "Critical", Qgis, "Critical")
 _message_button = getattr(QMessageBox, "StandardButton", QMessageBox)
 MSGBOX_YES = _enum_value(_message_button, "Yes", QMessageBox, "Yes")
 MSGBOX_NO = _enum_value(_message_button, "No", QMessageBox, "No")
+
+_wkb_type = getattr(QgsWkbTypes, "Type", QgsWkbTypes)
+WKB_LINESTRING = _enum_value(_wkb_type, "LineString", QgsWkbTypes, "LineString")
+WKB_POINT = _enum_value(_wkb_type, "Point", QgsWkbTypes, "Point")
 
 _writer_action = getattr(
     QgsVectorFileWriter,

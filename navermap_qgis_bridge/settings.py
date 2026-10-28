@@ -10,14 +10,14 @@ PLUGIN_DIR = Path(__file__).resolve().parent
 ENV_NAVER_JS_KEY = "NAVER_MAP_CLIENT_ID"
 ENV_NAVER_REST_KEY = "NAVER_MAP_CLIENT_SECRET"
 ENV_NAVER_API_HUB_CLIENT_ID = "NAVER_API_HUB_CLIENT_ID"
-ENV_NAVER_API_HUB_CLIENT_SECRET = "NAVER_API_HUB_CLIENT_SECRET"
+ENV_NAVER_API_HUB_REST_KEY = "NAVER_API_HUB_CLIENT_SECRET"
 ENV_NAVER_MAP_BASE_URL = "NAVER_MAP_BASE_URL"
 DEFAULT_NAVER_MAP_BASE_URL = "http://localhost:8083/navermap_qgis_bridge/"
 SETTINGS_FILE = PLUGIN_DIR / "settings.json"
 QGIS_NAVER_JS_KEY = "navermap_qgis_bridge/naver_client_id"
 QGIS_NAVER_REST_KEY = "navermap_qgis_bridge/naver_client_secret"
 QGIS_NAVER_API_HUB_CLIENT_ID = "navermap_qgis_bridge/naver_api_hub_client_id"
-QGIS_NAVER_API_HUB_CLIENT_SECRET = (
+QGIS_NAVER_API_HUB_REST_KEY = (
     "navermap_qgis_bridge/naver_api_hub_client_secret"
 )
 
@@ -91,17 +91,17 @@ def naver_api_hub_client_id():
 
 
 def environment_api_hub_client_secret():
-    return os.getenv(ENV_NAVER_API_HUB_CLIENT_SECRET, "").strip()
+    return os.getenv(ENV_NAVER_API_HUB_REST_KEY, "").strip()
 
 
 def stored_api_hub_client_secret():
-    value = QgsSettings().value(QGIS_NAVER_API_HUB_CLIENT_SECRET, "")
+    value = QgsSettings().value(QGIS_NAVER_API_HUB_REST_KEY, "")
     return str(value or "").strip()
 
 
 def save_api_hub_client_secret(value):
     settings = QgsSettings()
-    settings.setValue(QGIS_NAVER_API_HUB_CLIENT_SECRET, validated_credential(value))
+    settings.setValue(QGIS_NAVER_API_HUB_REST_KEY, validated_credential(value))
     settings.sync()
 
 

@@ -87,8 +87,9 @@ def main():
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--label", help="Test filename label, not metadata version")
     mode.add_argument("--release", action="store_true", help="Build a version-only release filename")
+    mode.add_argument("--experimental", action="store_true", help="Build a version-only experimental filename")
     args = parser.parse_args()
-    label = None if args.release else (args.label if args.label is not None else "test-20261008")
+    label = None if args.release or args.experimental else (args.label if args.label is not None else "test-20261008")
     if label is not None and (not label or any(character not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"
                                               for character in label)):
         raise ValueError("Invalid build label")
@@ -101,6 +102,9 @@ def main():
     if args.release and (metadata["general"].getboolean("experimental", fallback=True)
                          or not metadata["general"].get("changelog", "").strip()):
         raise ValueError("Release builds require non-experimental metadata and a changelog")
+    if args.experimental and (not metadata["general"].getboolean("experimental", fallback=False)
+                              or not metadata["general"].get("changelog", "").strip()):
+        raise ValueError("Experimental builds require experimental metadata and a changelog")
     suffix = "" if label is None else f"-{label}"
     output = ROOT / "dist" / f"navermap_qgis_bridge-{version}{suffix}.zip"
     entries = package_entries()

@@ -2,7 +2,7 @@
 
 [한국어](release-checklist.md) | English · [Home](../README.en.md) · [Changelog](../CHANGELOG.en.md) · [Development guide](development.en.md)
 
-Version `1.0` is prepared for a QGIS repository update. These are preparation requirements, not completed results. Documentation work or a test ZIP alone does not create a version bump, tag, or GitHub Release.
+Version `0.99.1` is an experimental preview; stable `1.0` is planned after validation and fixes. These are preparation requirements, not completed results. Documentation work or a test ZIP alone does not create a version bump, tag, or GitHub Release.
 
 ## Version and documentation
 
@@ -33,12 +33,12 @@ Version `1.0` is prepared for a QGIS repository update. These are preparation re
 
 Confirm that version, commit, ZIP, and release notes agree before proceeding with an authorized release. Attach the QGIS installation ZIP separately from GitHub's automatic source archives. Download the published ZIP and recheck its structure, hash, and documentation links.
 
-## Submit 1.0 to the QGIS repository
+## Submit the 0.99.1 preview to the QGIS repository
 
 1. Sign in to the [QGIS plugin repository](https://plugins.qgis.org/) with an account allowed to upload the plugin.
-2. Check ownership and existing versions. If `1.0` is already registered, it cannot be overwritten with the same version; choose the next version instead.
-3. Use [Upload a plugin](https://plugins.qgis.org/plugins/add/) and select `navermap_qgis_bridge-1.0.zip`. Keep the existing module name `navermap_qgis_bridge` and plugin title.
-4. Check imported version 1.0, minimum QGIS 3.34, maximum 4.99, Experimental disabled, public source/homepage/issue links, and English description.
+2. Check ownership and existing versions. If `0.99.1` is already registered, it cannot be overwritten with the same version; choose the next version instead.
+3. Use [Upload a plugin](https://plugins.qgis.org/plugins/add/) and select `navermap_qgis_bridge-0.99.zip`. Keep the existing module name `navermap_qgis_bridge` and plugin title.
+4. Check imported version 0.99.1, minimum QGIS 3.34, maximum 4.99, Experimental enabled, public source/homepage/issue links, and English description.
 5. Confirm the submission result and record its review/approval status. Submission alone does not establish publication or approval.
 
 Check minimal documentation, an English description, public source/homepage/issue links, a GPL-compatible license, and package structure against the [official publishing requirements](https://plugins.qgis.org/docs/publish). The ZIP must not exceed 25MB or include actual keys or executable binaries. Also check version uniqueness and the single plugin folder required by the [release documentation](https://docs.qgis.org/3.44/en/docs/pyqgis_developer_cookbook/plugins/releasing.html).

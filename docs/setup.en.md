@@ -20,7 +20,7 @@ The embedded viewer needs Qt WebEngine and WebChannel. When unavailable, the plu
 
 Before updating, save any history you need and close old external-browser tabs. Install the new ZIP, restart QGIS, and open a fresh tab from the plugin. Credentials in the same QGIS profile are stored separately from the plugin folder.
 
-The current metadata version is `1.0`. Names such as `fix4` identify earlier 0.2.0 test packages. Use `navermap_qgis_bridge-1.0.zip` for the 1.0 upload. No GitHub Release has been published yet. Future published packages can be found under [Releases](https://github.com/youngj-kim/navermap_qgis-bridge/releases).
+The current metadata version is `0.99.1`, marked experimental. Names such as `fix4` identify earlier 0.2.0 test packages. Use `navermap_qgis_bridge-0.99.zip` for the 0.99.1 preview upload. No GitHub Release has been published yet. Future published packages can be found under [Releases](https://github.com/youngj-kim/navermap_qgis-bridge/releases).
 
 ### Installing from source
 
@@ -71,13 +71,13 @@ Keys must contain printable ASCII characters without spaces or line breaks. They
 
 ### Environment variables
 
-Environment variables override values saved in QGIS. This PowerShell example contains placeholders only. Launch QGIS from a process that inherits these variables; setting them later does not update an already-running QGIS process.
+Environment variables override values saved in QGIS. IDs in this PowerShell example are placeholders; enter Client Secrets at runtime. Read-Host input is visible, so use the QGIS password dialog when sharing your screen. Launch QGIS from a process that inherits these variables; setting them later does not update an already-running QGIS process.
 
 ```powershell
 $env:NAVER_MAP_CLIENT_ID = "YOUR_NAVER_MAP_CLIENT_ID"
-$env:NAVER_MAP_CLIENT_SECRET = "YOUR_NAVER_MAP_CLIENT_SECRET"
+$env:NAVER_MAP_CLIENT_SECRET = Read-Host "Enter Maps Client Secret"
 $env:NAVER_API_HUB_CLIENT_ID = "YOUR_NAVER_API_HUB_CLIENT_ID"
-$env:NAVER_API_HUB_CLIENT_SECRET = "YOUR_NAVER_API_HUB_CLIENT_SECRET"
+$env:NAVER_API_HUB_CLIENT_SECRET = Read-Host "Enter API HUB Client Secret"
 ```
 
 Legacy `settings.json` is read only as a compatibility source for the Maps JavaScript Client ID. For new installations, use QGIS settings or environment variables. Copying the example JSON alone does not configure all four credentials.

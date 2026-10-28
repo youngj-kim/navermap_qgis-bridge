@@ -4,7 +4,9 @@
 import json
 import math
 import re
-from xml.etree import ElementTree as ET
+# Export-only: Element/SubElement/ElementTree/write; no XML parsing entry points.
+# B405 is reviewed here, not disabled for XML readers elsewhere in the plugin.
+from xml.etree import ElementTree as ET  # nosec B405
 
 from .data_transforms import safe_float, safe_number
 

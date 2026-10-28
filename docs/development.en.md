@@ -47,10 +47,10 @@ The runtime group covers layers, files, localhost HTTP, project lifetime, histor
 ## Build an installation ZIP
 
 ```powershell
-python -B tools/build_plugin.py --release
+python -B tools/build_plugin.py --experimental
 ```
 
-The version is read from `metadata.txt`; `--release` uses a version-only filename. Use `--label YOUR_TEST_LABEL` for test packages. Output is `dist/navermap_qgis_bridge-1.0.zip`. Existing ZIPs are not overwritten, so use a different test label for another build.
+The version is read from `metadata.txt`; `--experimental` uses a version-only preview filename. Stable packages require `experimental=False` and `--release`. Use `--label YOUR_TEST_LABEL` for test packages. Output is `dist/navermap_qgis_bridge-0.99.zip`. Existing ZIPs are not overwritten, so use a different test label for another build.
 
 The builder checks the single plugin root, Python syntax/internal imports, web assets, and ZIP CRC. It includes installation READMEs, setup/usage/troubleshooting guides, changelogs, and manual checklists in Korean and English. It excludes development tests/tools, local settings, and caches. Relative documentation links must work inside the ZIP.
 
@@ -59,3 +59,19 @@ The builder checks the single plugin root, Python syntax/internal imports, web a
 Consider QGIS 3.34+ and 4.x, including external-browser and embedded viewers. Do not mark unexecuted checks as passed. Do not commit API keys, `settings.json`, or generated HTML containing credentials. Keep GPL-2.0-or-later compatibility.
 
 Before release, follow the [release checklist](release-checklist.en.md). Record changes in [CHANGELOG.en.md](../CHANGELOG.en.md) and the Korean counterpart; detailed execution results remain in [TESTING.md (Korean)](../TESTING.md). Earlier design reasoning is retained in the [refactoring record (Korean)](../REFACTORING.md) and [archive index](archive/README.en.md).
+
+## Reproduce repository security checks
+
+Before upload, run Bandit and detect-secrets on the plugin folder included in the installation ZIP. These are development tools, not plugin runtime dependencies.
+
+```powershell
+python -m pip install --target dist/security-tools bandit detect-secrets flake8
+$env:PYTHONPATH = "$PWD/dist/security-tools"
+python -m bandit -r navermap_qgis_bridge
+python -m detect_secrets scan --all-files navermap_qgis_bridge
+python -m flake8 navermap_qgis_bridge --select E731,F821,F822,F823
+```
+
+Version 0.99.1 addresses the repository's three Bandit findings, seven secret detections, and four Qt6 findings. Setting identifiers are not credentials; only Python constant names change, preserving actual stored keys/environment names. GPX generates XML without parsing it, so the B405 review is documented on that single import. A regression guard limits the module to XML-generation APIs. No whole-rule/path exclusions or baseline are added.
+
+Local results do not guarantee server approval. See the [official scanner guidance](https://plugins.qgis.org/docs/security-scanning/tools) and check Security/Qt6 results for the actual new version.

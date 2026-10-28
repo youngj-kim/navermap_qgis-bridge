@@ -2,9 +2,24 @@
 
 [한국어](CHANGELOG.md) | English · [Home](README.en.md) · [Update instructions](docs/setup.en.md) · [Release checklist](https://github.com/youngj-kim/navermap_qgis-bridge/blob/main/docs/release-checklist.en.md)
 
-The version authority is `navermap_qgis_bridge/metadata.txt`. The current version is **1.0**, **prepared for a QGIS repository update**. No GitHub Release or official release tag has been published. Dates below group development changes; they do not each identify a new release. `fix1` through `fix4` identify earlier 0.2.0 test ZIPs.
+The version authority is `navermap_qgis_bridge/metadata.txt`. The current version is **0.99.1**, an **experimental preview**. No GitHub Release or official release tag has been published. Dates below group development changes; they do not each identify a new release. `fix1` through `fix4` identify earlier 0.2.0 test ZIPs.
 
-## 1.0 — 2026-10-27 (prepared for a QGIS repository update)
+## 0.99.1 — 2026-10-28 (security and Qt6 review fixes)
+
+- Experimental resubmission addressing findings that blocked version 0.99 in the QGIS repository.
+- Align API HUB Python constant names with the Maps REST_KEY convention. Actual environment names and persistent QGIS keys are unchanged, preserving existing credentials.
+- Remove unused Client Secret example fields from legacy JSON and prompt for values at runtime in Korean/English PowerShell examples.
+- ElementTree is used only for GPX generation. Document the B405 false positive at that import and add a regression guard against XML parsing. No complete security rule or path is disabled through configuration.
+- Remove direct PyQt5 fallback imports. If the qgis.PyQt web modules are unavailable, use the external browser. Isolate history geometry enums in compat.py and fix both E731 findings.
+- See TESTING for local Bandit/detect-secrets and QGIS 3/4 results. The repository must scan and review the new upload before its approval can be confirmed.
+
+## 0.99 — 2026-10-27 (experimental preview)
+
+- Submit experimental 0.99 before the planned stable 1.0 release. Metadata is version=0.99 and experimental=True.
+- Keep existing features and Korean/English guides; the upload ZIP is `navermap_qgis_bridge-0.99.zip`. Experimental versions still undergo repository security checks and review.
+- Check installation, live APIs, and user feedback, then fix issues before a separate stable 1.0 release. The 1.0 preparation below records an earlier unpublished plan.
+
+## 1.0 — 2026-10-27 (unpublished preparation)
 
 - Set metadata version to 1.0 and `experimental=False` for a non-experimental distribution package. This does not expand the verified environments or supported scope automatically.
 - Include the existing routes, instructions, history, EN/KR features, and Korean/English user documentation. There are no functional changes from the 0.2.0 test build.

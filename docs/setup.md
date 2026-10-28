@@ -22,7 +22,7 @@ QGIS 3.34 LTR 이상 또는 QGIS 4.x, 인터넷 연결, 본인의 NAVER Cloud �
 
 업데이트 전에는 필요한 이력을 파일로 저장하고 기존 외부 브라우저 탭을 닫으세요. 새 ZIP으로 설치한 뒤 QGIS를 다시 시작하고 플러그인에서 새 탭을 엽니다. 같은 QGIS 프로필의 인증 설정은 플러그인 폴더와 별도로 저장됩니다.
 
-현재 메타데이터 버전은 `1.0`입니다. `fix4`는 이전 0.2.0 테스트 패키지의 구분자입니다. 1.0 업로드에는 `navermap_qgis_bridge-1.0.zip`을 사용합니다. 아직 GitHub Release는 게시하지 않았습니다. 향후 게시된 패키지는 [Releases](https://github.com/youngj-kim/navermap_qgis-bridge/releases)에서 확인할 수 있습니다.
+현재 메타데이터 버전은 `0.99.1`이며 실험적 버전입니다. `fix4`는 이전 0.2.0 테스트 패키지의 구분자입니다. 0.99.1 시험 배포에는 `navermap_qgis_bridge-0.99.zip`을 사용합니다. 아직 GitHub Release는 게시하지 않았습니다. 향후 게시된 패키지는 [Releases](https://github.com/youngj-kim/navermap_qgis-bridge/releases)에서 확인할 수 있습니다.
 
 ### 소스 설치
 
@@ -73,13 +73,13 @@ NAVER Cloud의 NAVER API HUB에서 **검색 → 지역**을 사용할 Applicatio
 
 ### 환경변수 사용
 
-환경변수가 QGIS에 저장한 값보다 우선합니다. 다음은 PowerShell 예시이며 모두 placeholder입니다. 이 환경을 상속하는 프로세스에서 QGIS를 실행해야 합니다. 이미 실행 중인 QGIS에는 나중에 설정한 값이 반영되지 않습니다.
+환경변수가 QGIS에 저장한 값보다 우선합니다. 다음 PowerShell 예시의 ID는 placeholder이며 Client Secret은 실행 시 입력합니다. Read-Host 입력은 화면에 보이므로 공유 화면에서는 QGIS의 비밀 입력창을 사용하세요. 이 환경을 상속하는 프로세스에서 QGIS를 실행해야 합니다. 이미 실행 중인 QGIS에는 나중에 설정한 값이 반영되지 않습니다.
 
 ```powershell
 $env:NAVER_MAP_CLIENT_ID = "YOUR_NAVER_MAP_CLIENT_ID"
-$env:NAVER_MAP_CLIENT_SECRET = "YOUR_NAVER_MAP_CLIENT_SECRET"
+$env:NAVER_MAP_CLIENT_SECRET = Read-Host "Maps Client Secret 입력"
 $env:NAVER_API_HUB_CLIENT_ID = "YOUR_NAVER_API_HUB_CLIENT_ID"
-$env:NAVER_API_HUB_CLIENT_SECRET = "YOUR_NAVER_API_HUB_CLIENT_SECRET"
+$env:NAVER_API_HUB_CLIENT_SECRET = Read-Host "API HUB Client Secret 입력"
 ```
 
 예전 `settings.json`은 Maps JavaScript Client ID의 이전 호환 경로로만 읽습니다. 새 설치는 QGIS 설정 또는 환경변수를 사용하세요. 예시 JSON을 복사하는 것만으로 네 종류의 인증 정보가 모두 설정되지는 않습니다.
