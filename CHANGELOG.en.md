@@ -2,7 +2,15 @@
 
 [한국어](CHANGELOG.md) | English · [Home](README.en.md) · [Update instructions](docs/setup.en.md) · [Release checklist](https://github.com/youngj-kim/navermap_qgis-bridge/blob/main/docs/release-checklist.en.md)
 
-The version authority is `navermap_qgis_bridge/metadata.txt`. The current version is **0.99.1**, an **experimental preview**. No GitHub Release or official release tag has been published. Dates below group development changes; they do not each identify a new release. `fix1` through `fix4` identify earlier 0.2.0 test ZIPs.
+The version authority is `navermap_qgis_bridge/metadata.txt`. The current version is **1.0**, a **stable release**. Installation ZIPs are provided through GitHub Releases and the QGIS plugin repository. Dates below group development changes; they do not each identify a new release. `fix1` through `fix4` identify earlier 0.2.0 test ZIPs.
+
+
+## 1.0 — 2026-10-29 (stable release)
+
+- Following user-confirmed QGIS repository approval of 0.99.1, set version=1.0 and experimental=False.
+- Preserve existing functionality and credential settings; update Korean and English installation and usage documentation.
+- Require security, secret detection, Flake8 and full QGIS 4/Qt6 checks on distribution ZIPs, with reports and SHA256.
+- Upload/approval of 1.0 and publishing a GitHub Release remain separate steps. See TESTING for verification scope.
 
 ## 0.99.1 — 2026-10-28 (security and Qt6 review fixes)
 
@@ -19,7 +27,7 @@ The version authority is `navermap_qgis_bridge/metadata.txt`. The current versio
 - Keep existing features and Korean/English guides; the upload ZIP is `navermap_qgis_bridge-0.99.zip`. Experimental versions still undergo repository security checks and review.
 - Check installation, live APIs, and user feedback, then fix issues before a separate stable 1.0 release. The 1.0 preparation below records an earlier unpublished plan.
 
-## 1.0 — 2026-10-27 (unpublished preparation)
+## Earlier stable release preparation — 2026-10-27 (unpublished preparation)
 
 - Set metadata version to 1.0 and `experimental=False` for a non-experimental distribution package. This does not expand the verified environments or supported scope automatically.
 - Include the existing routes, instructions, history, EN/KR features, and Korean/English user documentation. There are no functional changes from the 0.2.0 test build.

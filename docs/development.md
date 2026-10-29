@@ -49,10 +49,10 @@ python -B tests/run_checks.py --group qgis --qgis-launcher 'C:\Program Files\QGI
 ## 설치 ZIP 생성
 
 ```powershell
-python -B tools/build_plugin.py --experimental
+python -B tools/build_plugin.py --release --qgis4-launcher 'C:/Program Files/QGIS 4.2.2/bin/python-qgis.bat'
 ```
 
-버전은 `metadata.txt`에서 읽으며 `--experimental`은 label 없는 시험 배포 파일명을 사용합니다. 정식 배포에는 `experimental=False`와 `--release`를 사용합니다. 테스트 패키지는 `--label YOUR_TEST_LABEL`로 구분합니다. 결과는 `dist/navermap_qgis_bridge-0.99.zip`입니다. 같은 파일을 덮어쓰지 않으므로 재빌드 시에는 다른 테스트 label을 사용합니다.
+버전은 `metadata.txt`에서 읽으며 `--experimental`은 label 없는 시험 배포 파일명을 사용합니다. 정식 배포에는 `experimental=False`와 `--release`를 사용합니다. 현재 결과는 `dist/navermap_qgis_bridge-1.0.zip`입니다. 같은 파일을 덮어쓰지 않습니다. 다른 출력 폴더는 `--output-dir`로 지정합니다. `--label YOUR_TEST_LABEL`은 개발용 패키지이며 보안/Qt6 배포 검사를 수행하지 않으므로 업로드하지 않습니다.
 
 생성기는 단일 플러그인 루트, Python 문법·내부 import·웹 리소스·ZIP CRC를 검사합니다. 한글·영문 설치 README, 사용·설치·문제 해결 가이드, 변경 기록과 수동 체크리스트를 포함하며 개발 테스트·빌드 도구·로컬 설정·캐시는 제외합니다. 설치용 README의 문서 링크는 ZIP 안에서 열려야 합니다.
 
@@ -64,15 +64,17 @@ QGIS 3.34 이상과 4.x, 외부 브라우저와 내장 뷰어를 함께 고려�
 
 ## 저장소 보안 검사 재현
 
-업로드 전에 설치 ZIP에 포함되는 플러그인 폴더를 Bandit·detect-secrets로 검사합니다. 이 도구는 개발용이며 플러그인 실행 의존성에 추가하지 않습니다.
+`--experimental`과 `--release`는 임시 ZIP을 풀어 실제 배포 내용에 Bandit·detect-secrets·Flake8 및 공식 QGIS Qt6 검사를 반드시 실행합니다. 누락된 도구, 시간 초과, 검사 오류, 탐지 결과 또는 Qt6 수정 권고가 있으면 최종 ZIP을 생성하지 않습니다. Qt6 검사는 QGIS 4 / Qt6 및 전체 QGIS 클래스가 필요하며 부분 검사로 대체하지 않습니다. 이 도구는 개발용이며 플러그인 실행 의존성에 추가하지 않습니다.
 
 ```powershell
-python -m pip install --target dist/security-tools bandit detect-secrets flake8
-$env:PYTHONPATH = "$PWD/dist/security-tools"
-python -m bandit -r navermap_qgis_bridge
-python -m detect_secrets scan --all-files navermap_qgis_bridge
-python -m flake8 navermap_qgis_bridge --select E731,F821,F822,F823
+python -m pip install --target dist/security-tools -r tools/security-requirements.txt
+Invoke-WebRequest 'https://raw.githubusercontent.com/qgis/QGIS/master/scripts/pyqt5_to_pyqt6/pyqt5_to_pyqt6.py' -OutFile dist/pyqt5_to_pyqt6.py
+python -B tools/build_plugin.py --release --qgis4-launcher 'C:/Program Files/QGIS 4.2.2/bin/python-qgis.bat'
 ```
+
+QGIS 경로는 설치 환경에 맞게 지정하거나 `QGIS4_PYTHON` 환경변수로 설정합니다. `--scanner-path`와 `--qt6-checker`로 도구 위치를 바꿀 수 있습니다. 공식 검사기 SHA256은 `tools/release_checks.py`에 고정하며, 다운로드한 최신 파일이 달라지면 내용을 검토한 후 갱신해야 합니다. 자동 다운로드나 검사 생략 옵션은 없습니다.
+
+통과한 ZIP 옆의 `.checks` 폴더에 검사 보고서, 도구 버전, Qt6 검사기 SHA256과 ZIP SHA256을 기록합니다. 검사 중 추출 파일이 바뀌어도 배포를 중단합니다. 이 과정은 정적 검사이며 QGIS 3.34/4의 동작 확인 및 수동 릴리스 체크리스트를 대신하지 않습니다.
 
 0.99.1은 저장소가 보고한 Bandit 3건·비밀정보 탐지 7건 및 Qt6 4건을 대조해 수정했습니다. 설정 이름은 실제 키가 아니며 Python 상수명만 정리하고 실제 저장 키/환경변수는 유지합니다. GPX는 XML을 파싱하지 않고 생성만 하므로 해당 import의 B405 한 줄에 검토 근거를 남겼습니다. 회귀 검사는 XML 생성 API만 사용하도록 제한합니다. 전체 규칙·경로 제외나 baseline은 추가하지 않습니다.
 

@@ -5,8 +5,12 @@ import ast
 import configparser
 import hashlib
 import json
+import os
+import shutil
+import tempfile
 from pathlib import Path
 from zipfile import ZipFile, ZIP_DEFLATED
+from release_checks import scan
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -88,6 +92,10 @@ def main():
     mode.add_argument("--label", help="Test filename label, not metadata version")
     mode.add_argument("--release", action="store_true", help="Build a version-only release filename")
     mode.add_argument("--experimental", action="store_true", help="Build a version-only experimental filename")
+    parser.add_argument("--scanner-path", default=str(ROOT / "dist/security-tools"))
+    parser.add_argument("--qt6-checker", default=str(ROOT / "dist/pyqt5_to_pyqt6.py"))
+    parser.add_argument("--qgis4-launcher", default=os.environ.get("QGIS4_PYTHON"))
+    parser.add_argument("--output-dir", type=Path, default=ROOT / "dist")
     args = parser.parse_args()
     label = None if args.release or args.experimental else (args.label if args.label is not None else "test-20261008")
     if label is not None and (not label or any(character not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"
@@ -106,14 +114,46 @@ def main():
                               or not metadata["general"].get("changelog", "").strip()):
         raise ValueError("Experimental builds require experimental metadata and a changelog")
     suffix = "" if label is None else f"-{label}"
-    output = ROOT / "dist" / f"navermap_qgis_bridge-{version}{suffix}.zip"
+    output = args.output_dir.resolve() / f"navermap_qgis_bridge-{version}{suffix}.zip"
     entries = package_entries()
-    output.parent.mkdir(exist_ok=True)
-    # Never overwrite an existing package silently.
-    with ZipFile(output, "x", compression=ZIP_DEFLATED) as archive:
-        for name, source in sorted(entries.items()):
-            archive.write(source, name)
-    count = validate_archive(output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    if output.exists() or output.with_suffix(".checks").exists():
+        raise FileExistsError(f"Build output already exists: {output}")
+    with tempfile.TemporaryDirectory(prefix="release-check-", dir=output.parent) as temporary:
+        staging = Path(temporary)
+        candidate = staging / "candidate.zip"
+        with ZipFile(candidate, "x", compression=ZIP_DEFLATED) as archive:
+            for name, source in sorted(entries.items()):
+                archive.write(source, name)
+        count = validate_archive(candidate)
+        if args.release or args.experimental:
+            print("Checking extracted distribution: security and QGIS 4 / Qt6...", flush=True)
+            extracted = staging / "extracted"
+            with ZipFile(candidate) as archive:
+                archive.extractall(extracted)
+            package = extracted / "navermap_qgis_bridge"
+            before = {p.relative_to(package): hashlib.sha256(p.read_bytes()).hexdigest()
+                      for p in package.rglob("*") if p.is_file()}
+            reports = staging / "reports"
+            summary = scan(package, reports, args.scanner_path, args.qgis4_launcher, args.qt6_checker)
+            after = {p.relative_to(package): hashlib.sha256(p.read_bytes()).hexdigest()
+                     for p in package.rglob("*") if p.is_file()}
+            if before != after:
+                raise RuntimeError("Scanner modified the extracted distribution")
+            summary["zip_sha256"] = hashlib.sha256(candidate.read_bytes()).hexdigest()
+            (reports / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+            shutil.copytree(reports, output.with_suffix(".checks"))
+        else:
+            print("DEVELOPMENT ONLY: security/Qt6 release gates were not run")
+        # Exclusive creation prevents silently replacing an existing release.
+        with output.open("xb") as destination:
+            try:
+                with candidate.open("rb") as source:
+                    shutil.copyfileobj(source, destination)
+            except BaseException:
+                destination.close()
+                output.unlink()
+                raise
     digest = hashlib.sha256(output.read_bytes()).hexdigest()
     print(output)
     print(f"PASS: {count} files; one plugin root; syntax/imports/assets/CRC checked; no local settings")

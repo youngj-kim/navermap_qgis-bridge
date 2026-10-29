@@ -47,10 +47,10 @@ The runtime group covers layers, files, localhost HTTP, project lifetime, histor
 ## Build an installation ZIP
 
 ```powershell
-python -B tools/build_plugin.py --experimental
+python -B tools/build_plugin.py --release --qgis4-launcher 'C:/Program Files/QGIS 4.2.2/bin/python-qgis.bat'
 ```
 
-The version is read from `metadata.txt`; `--experimental` uses a version-only preview filename. Stable packages require `experimental=False` and `--release`. Use `--label YOUR_TEST_LABEL` for test packages. Output is `dist/navermap_qgis_bridge-0.99.zip`. Existing ZIPs are not overwritten, so use a different test label for another build.
+The version is read from `metadata.txt`; `--experimental` uses a version-only preview filename. Stable packages require `experimental=False` and `--release`. Current output is `dist/navermap_qgis_bridge-1.0.zip`. Existing outputs are never overwritten; use `--output-dir` for another destination. `--label YOUR_TEST_LABEL` creates a development package without the security/Qt6 release gates; do not upload it.
 
 The builder checks the single plugin root, Python syntax/internal imports, web assets, and ZIP CRC. It includes installation READMEs, setup/usage/troubleshooting guides, changelogs, and manual checklists in Korean and English. It excludes development tests/tools, local settings, and caches. Relative documentation links must work inside the ZIP.
 
@@ -62,15 +62,17 @@ Before release, follow the [release checklist](release-checklist.en.md). Record 
 
 ## Reproduce repository security checks
 
-Before upload, run Bandit and detect-secrets on the plugin folder included in the installation ZIP. These are development tools, not plugin runtime dependencies.
+Both `--experimental` and `--release` require Bandit, detect-secrets, Flake8 and the official QGIS Qt6 checker on the extracted candidate ZIP. Missing tools, timeouts, errors, findings or Qt6 migration suggestions prevent publication of the final ZIP. Qt6 checking requires QGIS 4 / Qt6 with full QGIS introspection; partial checks are rejected. These are development tools, not plugin runtime dependencies.
 
 ```powershell
-python -m pip install --target dist/security-tools bandit detect-secrets flake8
-$env:PYTHONPATH = "$PWD/dist/security-tools"
-python -m bandit -r navermap_qgis_bridge
-python -m detect_secrets scan --all-files navermap_qgis_bridge
-python -m flake8 navermap_qgis_bridge --select E731,F821,F822,F823
+python -m pip install --target dist/security-tools -r tools/security-requirements.txt
+Invoke-WebRequest 'https://raw.githubusercontent.com/qgis/QGIS/master/scripts/pyqt5_to_pyqt6/pyqt5_to_pyqt6.py' -OutFile dist/pyqt5_to_pyqt6.py
+python -B tools/build_plugin.py --release --qgis4-launcher 'C:/Program Files/QGIS 4.2.2/bin/python-qgis.bat'
 ```
+
+Adjust the QGIS launcher to your installation, or set `QGIS4_PYTHON`. Use `--scanner-path` and `--qt6-checker` for other tool locations. The official checker SHA256 is pinned in `tools/release_checks.py`; if upstream changes, review it before updating the pin. Builds never download tools or offer a release-check bypass.
+
+The adjacent `.checks` directory records reports, tool versions, checker SHA256 and ZIP SHA256. Changes to extracted files during scanning also block publication. These static checks complement the QGIS 3.34/4 runtime matrix and manual release checklist.
 
 Version 0.99.1 addresses the repository's three Bandit findings, seven secret detections, and four Qt6 findings. Setting identifiers are not credentials; only Python constant names change, preserving actual stored keys/environment names. GPX generates XML without parsing it, so the B405 review is documented on that single import. A regression guard limits the module to XML-generation APIs. No whole-rule/path exclusions or baseline are added.
 

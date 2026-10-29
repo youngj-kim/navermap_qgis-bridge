@@ -4,7 +4,7 @@
 
 [처음으로](../README.md) · [변경 기록](../CHANGELOG.md) · [개발 안내](development.md)
 
-현재 `0.99.1`는 실험적 시험 배포용이며, 문제 확인·보완 후 `1.0` 정식 배포를 계획합니다. 아래 항목은 다음 배포를 준비하기 위한 기준이며 완료 결과를 뜻하지 않습니다. 문서 정리나 테스트 ZIP 생성만으로 버전·태그·GitHub Release를 올리지 않습니다.
+현재 `1.0`은 정식 배포 준비 버전이며, 실험적 버전 `0.99.1`은 사용자 확인으로 저장소 승인이 완료됐습니다. 아래 항목은 다음 배포를 준비하기 위한 기준이며 완료 결과를 뜻하지 않습니다. 문서 정리나 테스트 ZIP 생성만으로 버전·태그·GitHub Release를 올리지 않습니다.
 
 ## 버전과 문서
 
@@ -26,6 +26,7 @@
 - [ ] `git diff`와 `git status`에 실제 키·`settings.json`·개인 파일이 없는지 확인한다.
 - [ ] 소스와 포함 리소스가 GPL-2.0-or-later와 호환되는지, 외부 출처·라이선스가 기록됐는지 확인한다.
 - [ ] 빌드 도구로 ZIP을 만들고 최상위가 `navermap_qgis_bridge/` 하나인지 확인한다.
+- [ ] `--experimental` 또는 `--release` 빌드의 보안·Qt6 필수 검사를 통과하고, `.checks/summary.json`의 SHA256이 제출 ZIP과 일치하는지 확인한다. 도구 설치와 실행은 [개발 안내](development.md)를 따른다.
 - [ ] Python 모듈·manifest의 모든 웹 리소스·LICENSE·사용자 문서가 포함됐는지 확인한다.
 - [ ] 키·로컬 설정·캐시·개발 의존성·사용자 이력 데이터가 ZIP에 없는지 확인한다.
 - [ ] ZIP 안 README의 상대 문서 링크와 CRC를 확인하고 SHA256을 기록한다.
@@ -35,12 +36,12 @@
 
 검증한 버전·커밋·ZIP·릴리즈 노트가 일치하는지 확인한 뒤 승인된 배포를 진행합니다. GitHub Release를 게시할 때는 소스 자동 압축본과 별도로 QGIS 설치용 ZIP을 첨부합니다. 게시 후 다운로드한 ZIP으로 구조·해시·문서 링크를 재확인합니다.
 
-## QGIS 저장소에 0.99.1 시험 버전 제출하기
+## QGIS 저장소에 1.0 정식 버전 제출하기
 
 1. 업로드 권한이 있는 계정으로 [QGIS 플러그인 저장소](https://plugins.qgis.org/)에 로그인합니다.
-2. 기존 플러그인의 소유권과 버전 목록을 확인합니다. 이미 `0.99.1`가 등록돼 있으면 같은 버전으로 덮어쓸 수 없으므로 다음 버전을 정해야 합니다.
-3. [Upload a plugin](https://plugins.qgis.org/plugins/add/)에서 `navermap_qgis_bridge-0.99.zip`을 선택합니다. 기존 모듈명 `navermap_qgis_bridge`와 플러그인 이름은 유지합니다.
-4. 읽어 온 버전 0.99.1, 최소 QGIS 3.34, 최대 4.99, Experimental 선택, 소스·홈페이지·이슈 링크와 영문 소개를 확인합니다.
+2. 기존 플러그인의 소유권과 버전 목록을 확인합니다. 이미 `1.0`가 등록돼 있으면 같은 버전으로 덮어쓸 수 없으므로 다음 버전을 정해야 합니다.
+3. [Upload a plugin](https://plugins.qgis.org/plugins/add/)에서 `navermap_qgis_bridge-1.0.zip`을 선택합니다. 기존 모듈명 `navermap_qgis_bridge`와 플러그인 이름은 유지합니다.
+4. 읽어 온 버전 1.0, 최소 QGIS 3.34, 최대 4.99, Experimental 해제, 소스·홈페이지·이슈 링크와 영문 소개를 확인합니다.
 5. 등록 결과를 확인하고 심사·승인 상태를 기록합니다. 제출만으로 공개·승인이 완료된 것은 아닙니다.
 
 최소 문서, 영문 설명, 공개 소스·홈페이지·이슈 링크, GPL 호환 라이선스와 패키지 구조는 [QGIS 공식 게시 요건](https://plugins.qgis.org/docs/publish)을 기준으로 점검합니다. 제출 ZIP은 25MB 이하이며 실제 키·실행 바이너리를 포함하지 않아야 합니다. [배포 문서](https://docs.qgis.org/3.44/en/docs/pyqgis_developer_cookbook/plugins/releasing.html)의 버전 고유성과 단일 플러그인 폴더 요건도 확인합니다.

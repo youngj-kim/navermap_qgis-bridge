@@ -3,21 +3,20 @@ name=Naver Map QGIS Bridge
 qgisMinimumVersion=3.34
 qgisMaximumVersion=4.99
 description=Synchronize NAVER Map and Street View with QGIS, search places, and manage driving routes and history.
-version=0.99.1
+version=1.0
 author=yjkim
 email=contact@yjkim.dev
 about=View NAVER Map and Street View in an embedded dock or an external browser with bidirectional position and zoom synchronization. Place search and driving routes target South Korea. Create routes with up to five waypoints, inspect turn-by-turn instructions, import saved route history, and export GeoPackage, GeoJSON, Shapefile, or GPX. Includes EN/KR controls and API-provided English instructions for new routes. Internet access and users' own NAVER Maps and NAVER API HUB credentials are required. Embedded mode requires Qt WebEngine and WebChannel; an external-browser fallback is provided. Map tiles are not extracted or registered as QGIS XYZ/TMS layers. Korean and English guides are included.
-changelog=0.99.1 - 2026-10-28
-    Fix repository scan findings for credential setting names and placeholder examples.
-    Keep credential environment names and stored settings compatible with existing profiles.
-    Document the export-only ElementTree import and add a regression guard against XML parsing.
-    Use qgis.PyQt imports and compatibility-scoped geometry enums for QGIS 3 and 4.
-    Fix the reported E731 lambda assignments in history validation.
+changelog=1.0 - 2026-10-29
+    Stable release following approval of experimental version 0.99.1.
+    Include bilingual guides, route instructions, history management and export tools.
+    Require security and full QGIS 4 / Qt6 checks for distribution builds.
+    Preserve existing credential settings and QGIS 3.34+ / 4.x compatibility.
 tags=naver,street view,roadview,routing,geocoding,map synchronization
 category=Web
 icon=icon.png
 tracker=https://github.com/youngj-kim/navermap_qgis-bridge/issues
 repository=https://github.com/youngj-kim/navermap_qgis-bridge
 homepage=https://github.com/youngj-kim/navermap_qgis-bridge
-experimental=True
+experimental=False
 deprecated=False
