@@ -18,6 +18,8 @@ Synchronize the position and zoom of QGIS with NAVER Map and Street View. Search
 
 Each user supplies their own credentials. See [Installation and API keys](docs/setup.en.md) for obtaining credentials, distinguishing the four key settings, updating the plugin, and using an external browser. Native plugin menus remain in Korean; the setup guide identifies their exact labels.
 
+For international users, NAVER Cloud account eligibility depends on the registration country and account type. As of October 29, 2026, individual registration outside Korea is not supported; business registration is supported in selected countries, subject to verification and payment requirements. Check the [official NAVER Cloud registration FAQ](https://www.ncloud.com/support/faq/all/1104) for current eligibility. English UI support does not guarantee API account eligibility. Overseas account registration and end-to-end API access with this plugin have not been verified. Place search and driving routes in this plugin target South Korea.
+
 The 1.0 stable ZIP is prepared for a QGIS plugin repository update. The experimental 0.99.1 version was approved; this package prepares the stable 1.0 release. Repository upload/approval and publishing a GitHub Release are separate steps. **Code → Download ZIP** downloads the source repository, not a QGIS installation ZIP. The installation guide explains how to use a supplied installation package or build one from source.
 
 ## Main features
